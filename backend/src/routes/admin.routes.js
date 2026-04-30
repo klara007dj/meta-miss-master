@@ -1,15 +1,17 @@
 const express = require("express");
 const adminController = require("../controllers/admin.controller");
 const { authenticate, requireAdmin } = require("../middlewares/auth");
+const { upload } = require("../middlewares/upload");
 
 const router = express.Router();
 router.use(authenticate, requireAdmin);
 
 router.get("/stats", adminController.getDashboardStats);
 router.get("/candidates", adminController.getAllCandidates);
+router.post("/candidates", upload.single("photo"), adminController.createCandidate);
 router.patch("/candidates/:id/approve", adminController.approveCandidate);
 router.patch("/candidates/:id/reject", adminController.rejectCandidate);
-router.patch("/candidates/:id", adminController.updateCandidate);
+router.patch("/candidates/:id", upload.single("photo"), adminController.updateCandidate);
 router.delete("/candidates/:id", adminController.deleteCandidate);
 router.get("/payments", adminController.getAllPayments);
 router.post("/payments/:id/refund", adminController.refundPayment);
