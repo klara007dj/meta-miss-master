@@ -13,7 +13,7 @@ class CandidateController {
       }
       const data = {
         ...req.body,
-        photoPath: req.file.filename,
+        photoPath: req.file.path || req.file.secure_url || "",
         instagram: req.body.instagram,
         tiktok: req.body.tiktok,
         snap: req.body.snap,

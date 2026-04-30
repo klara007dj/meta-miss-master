@@ -18,7 +18,7 @@ async function createCandidate({ name, type, age, city, bio, photoPath, instagra
     throw new AppError("L'âge doit être entre 16 et 35 ans", 400);
   }
 
-  const photoUrl = `/uploads/${photoPath}`;
+  const photoUrl = photoPath;
 
   return prisma.candidate.create({
     data: {
