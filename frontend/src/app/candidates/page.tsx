@@ -1,54 +1,100 @@
 "use client";
-
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import Navbar from "@/components/layout/Navbar";
-import Footer from "@/components/layout/Footer";
-import CandidateCard from "@/components/candidate/CandidateCard";
+import BottomNav from "@/components/layout/BottomNav";
 import api from "@/lib/api";
 
 export default function CandidatesPage() {
   const [candidates, setCandidates] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [filter, setFilter] = useState<"ALL"|"MISS"|"MASTER">("ALL");
+  const [search, setSearch] = useState("");
+  const [liked, setLiked] = useState<Set<string>>(new Set());
+  const apiBase = process.env.NEXT_PUBLIC_API_URL?.replace("/api","") || "http://localhost:5000";
 
   useEffect(() => {
-    api
-      .get("/candidates?limit=100")
-      .then((response) => setCandidates(response.data.data?.candidates || []))
-      .catch(() => setError("Erreur lors du chargement des candidats"))
+    api.get("/candidates?limit=100")
+      .then(r => setCandidates(r.data.data?.candidates || []))
       .finally(() => setLoading(false));
   }, []);
 
+  const toggleLike = (id: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    setLiked(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
+  };
+
+  const filtered = candidates
+    .filter(c => filter === "ALL" || c.type === filter)
+    .filter(c => !search || c.name.toLowerCase().includes(search.toLowerCase()) || c.city?.toLowerCase().includes(search.toLowerCase()));
+
   return (
-    <div className="min-h-screen flex flex-col">
-      <Navbar />
-      <main style={{ flex: 1, width: "100%", padding: "65px 10px 45px", maxWidth: 1200, margin: "0 auto" }}>
-        <div style={{ textAlign: "center", marginBottom: 28 }}>
-          <div className="section-tag">Vote public</div>
-          <h1 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(1.8rem,5vw,3.2rem)", marginBottom: 10 }}>
-            Tous les candidats
-          </h1>
-          <p style={{ color: "var(--text-muted)", maxWidth: 640, margin: "0 auto 16px", lineHeight: 1.6, fontSize: "0.9rem" }}>
-            Choisissez votre favori puis votez librement. Chaque vote vaut 100 FCFA.
-          </p>
-          <Link href="/candidates/register" className="btn-primary" style={{ fontSize: "0.85rem", padding: "8px 20px" }}>
-            Participer au concours
-          </Link>
+    <div className="page-content fade-up">
+      {/* Top bar */}
+      <div className="top-bar">
+        <div style={{ width: 32 }} />
+        <span className="top-bar-title">Miss Master</span>
+        <button style={{ width: 32, height: 32, border: "1px solid var(--border)", borderRadius: 8, background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2">
+            <line x1="21" y1="4" x2="14" y2="4"/><line x1="10" y1="4" x2="3" y2="4"/>
+            <line x1="21" y1="12" x2="12" y2="12"/><line x1="8" y1="12" x2="3" y2="12"/>
+            <line x1="21" y1="20" x2="16" y2="20"/><line x1="12" y1="20" x2="3" y2="20"/>
+            <circle cx="12" cy="4" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="14" cy="20" r="2"/>
+          </svg>
+        </button>
+      </div>
+
+      {/* Search */}
+      <div className="search-box">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher une candidate..." />
+      </div>
+
+      {/* Filter chips */}
+      <div style={{ display: "flex", gap: 8, padding: "0 16px", marginBottom: 8 }}>
+        {(["ALL","MISS","MASTER"] as const).map(t => (
+          <button key={t} onClick={() => setFilter(t)} className={`chip${filter===t?" active":""}`}>
+            {t === "ALL" ? "Tous" : t === "MISS" ? "Miss Master" : "Mister Master"}
+          </button>
+        ))}
+      </div>
+
+      {/* List */}
+      {loading
+        ? [1,2,3,4,5].map(i => <div key={i} className="shimmer" style={{ height: 72, margin: "0 16px 8px", borderRadius: 10 }} />)
+        : filtered.map((c, i) => {
+            const photo = c.photoUrl?.startsWith("http") ? c.photoUrl : `${apiBase}${c.photoUrl}`;
+            const isLiked = liked.has(c.id);
+            const rank = candidates.filter(x => x.type === c.type).findIndex(x => x.id === c.id) + 1;
+            return (
+              <Link key={c.id} href={`/candidates/${c.id}`} style={{ textDecoration: "none" }}>
+                <div className="candidate-row fade-up" style={{ animationDelay: `${i*0.04}s` }}>
+                  <div className={`rank-badge ${rank===1?"gold":rank===2?"silver":rank===3?"bronze":""}`}>{rank}</div>
+                  <img src={photo} alt={c.name} className="avatar" style={{ width: 48, height: 48 }} onError={(e:any) => { e.target.style.background="#EFF6FF"; }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, fontSize: "0.88rem", color: "var(--text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.name}</div>
+                    <div style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>Région {c.city}</div>
+                  </div>
+                  <Link href={`/vote/${c.id}`} onClick={e => e.stopPropagation()} className="btn-blue" style={{ width: "auto", padding: "8px 16px", fontSize: "0.75rem", flexShrink: 0 }}>
+                    Voter
+                  </Link>
+                  <button className={`heart-btn${isLiked?" liked":""}`} onClick={e => toggleLike(c.id, e)}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill={isLiked ? "#EF4444" : "none"} stroke={isLiked ? "#EF4444" : "#9CA3AF"} strokeWidth="2">
+                      <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
+                    </svg>
+                  </button>
+                </div>
+              </Link>
+            );
+          })
+      }
+      {!loading && filtered.length === 0 && (
+        <div style={{ textAlign: "center", padding: "60px 20px", color: "var(--text-muted)", fontSize: "0.88rem" }}>
+          Aucun candidat trouvé
         </div>
-
-        {loading && <div style={{ textAlign: "center", color: "var(--text-muted)" }}>Chargement...</div>}
-        {!loading && error && <div style={{ textAlign: "center", color: "#EF5350" }}>{error}</div>}
-
-        {!loading && !error && (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 14 }}>
-            {candidates.map((candidate, index) => (
-              <CandidateCard key={candidate.id} candidate={candidate} index={index} />
-            ))}
-          </div>
-        )}
-      </main>
-      <Footer />
+      )}
+      <BottomNav />
     </div>
   );
 }

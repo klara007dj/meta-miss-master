@@ -9,100 +9,131 @@ interface Candidate {
 
 export default function CandidateCard({ candidate, index = 0 }: { candidate: Candidate; index?: number }) {
   const isMiss = candidate.type === "MISS";
-  const apiBase = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api").replace("/api","");
+  const apiBase = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api").replace("/api", "");
   const photo = candidate.photoUrl?.startsWith("http") ? candidate.photoUrl : `${apiBase}${candidate.photoUrl}`;
-
-  const S: Record<string,React.CSSProperties> = {
-    card: {
-      background:"var(--glass)",border:"1px solid var(--border)",
-      borderRadius:20,overflow:"hidden",backdropFilter:"blur(12px)",
-      transition:"transform .3s,border-color .3s,box-shadow .3s",
-      animation:`fade-up .6s ${index*0.07}s ease both`,
-    },
-    photo: {
-      position:"relative",height:260,overflow:"hidden",
-      background: isMiss ? "linear-gradient(135deg,#1A0010,#0A0820)"
-                         : "linear-gradient(135deg,#000E1A,#001028)",
-    },
-    gradient: {
-      position:"absolute",bottom:0,left:0,right:0,height:"60%",
-      background:"linear-gradient(to top,rgba(10,0,5,.95),transparent)",zIndex:1,
-    },
-    avatar: {
-      width:"100%",height:"100%",display:"flex",alignItems:"center",
-      justifyContent:"center",fontSize:"5rem",opacity:.3,
-      background:"radial-gradient(ellipse at 50% 30%,rgba(255,107,0,.15),transparent)",
-    },
-    typeBadge: {
-      position:"absolute",top:12,left:12,zIndex:2,
-      padding:"4px 12px",borderRadius:100,fontSize:"0.68rem",fontWeight:500,letterSpacing:"0.08em",
-    },
-    rankBadge: {
-      position:"absolute",top:12,right:12,zIndex:2,
-      width:30,height:30,borderRadius:"50%",
-      display:"flex",alignItems:"center",justifyContent:"center",
-      fontSize:"0.75rem",fontWeight:700,
-    },
-    voteCount: {
-      position:"absolute",bottom:12,right:12,zIndex:2,
-      display:"flex",alignItems:"center",gap:5,
-      background:"rgba(10,0,5,.65)",backdropFilter:"blur(8px)",
-      padding:"4px 10px",borderRadius:100,
-      fontSize:"0.75rem",color:"var(--gold-pale)",
-    },
-    body: { padding:16 },
-    name: { fontFamily:"var(--font-display)",fontSize:"1.15rem",fontWeight:600,color:"var(--text)",marginBottom:4 },
-    city: { fontSize:"0.75rem",color:"var(--text-muted)",marginBottom:14,display:"flex",alignItems:"center",gap:5 },
-    actions: { display:"flex",gap:8 },
-    btnVote: {
-      flex:1,padding:"9px 0",
-      background:"linear-gradient(135deg,var(--gold),var(--gold-light))",
-      color:"#08000A",border:"none",borderRadius:12,fontSize:"0.8rem",fontWeight:500,
-      cursor:"pointer",transition:"opacity .2s",fontFamily:"var(--font-body)",textAlign:"center" as const,
-      textDecoration:"none",display:"block",
-    },
-    btnProfile: {
-      flex:1,padding:"9px 0",background:"transparent",
-      color:"var(--gold)",border:"1px solid rgba(255,107,0,.3)",borderRadius:12,
-      fontSize:"0.8rem",cursor:"pointer",transition:"all .2s",fontFamily:"var(--font-body)",
-      textAlign:"center" as const,textDecoration:"none",display:"block",
-    },
-  };
-
   const rankClass = candidate.rank && candidate.rank <= 3 ? `rank-${candidate.rank}` : "";
 
   return (
-    <div style={S.card}
-      onMouseEnter={e=>{ (e.currentTarget as HTMLDivElement).style.transform="translateY(-6px)";(e.currentTarget as HTMLDivElement).style.borderColor="rgba(255,107,0,.35)";(e.currentTarget as HTMLDivElement).style.boxShadow="0 20px 60px rgba(0,0,0,.4)"; }}
-      onMouseLeave={e=>{ (e.currentTarget as HTMLDivElement).style.transform="";(e.currentTarget as HTMLDivElement).style.borderColor="var(--border)";(e.currentTarget as HTMLDivElement).style.boxShadow=""; }}
+    <div style={{
+      background: "var(--bg2)",
+      border: "1px solid var(--border-sub)",
+      borderRadius: 18, overflow: "hidden",
+      transition: "transform .3s, border-color .3s, box-shadow .3s",
+      animation: `fade-up .6s ${index * 0.07}s ease both`,
+      cursor: "pointer",
+    }}
+      onMouseEnter={e => {
+        const el = e.currentTarget as HTMLDivElement;
+        el.style.transform = "translateY(-6px)";
+        el.style.borderColor = "rgba(255,107,0,.35)";
+        el.style.boxShadow = "0 20px 50px rgba(0,0,0,.4), 0 0 0 1px rgba(255,107,0,.15)";
+      }}
+      onMouseLeave={e => {
+        const el = e.currentTarget as HTMLDivElement;
+        el.style.transform = "";
+        el.style.borderColor = "var(--border-sub)";
+        el.style.boxShadow = "";
+      }}
     >
-      <div style={S.photo}>
-        <Image src={photo} alt={candidate.name} fill style={{objectFit:"cover"}}
-          onError={(e:any)=>{ e.target.src="/placeholder.jpg"; }} />
-        <div style={S.gradient} />
-        <div style={S.typeBadge} className={isMiss?"badge-miss":"badge-master"}>
+      {/* Photo */}
+      <div style={{
+        position: "relative", height: 270, overflow: "hidden",
+        background: isMiss
+          ? "linear-gradient(135deg,#1A0A00,#0D0A00)"
+          : "linear-gradient(135deg,#0A0800,#0A0D00)",
+      }}>
+        <Image src={photo} alt={candidate.name} fill style={{ objectFit: "cover" }}
+          onError={(e: any) => { e.target.src = "/placeholder.jpg"; }} />
+
+        {/* Gradient overlay bottom */}
+        <div style={{
+          position: "absolute", bottom: 0, left: 0, right: 0, height: "55%",
+          background: "linear-gradient(to top, rgba(0,0,0,.85), transparent)",
+          zIndex: 1,
+        }} />
+
+        {/* Type badge */}
+        <div style={{
+          position: "absolute", top: 10, left: 10, zIndex: 2,
+          padding: "4px 11px", borderRadius: 100,
+          fontSize: "0.66rem", fontWeight: 700, letterSpacing: "0.1em",
+        }} className={isMiss ? "badge-miss" : "badge-master"}>
           {isMiss ? "♛ MISS" : "♚ MASTER"}
         </div>
+
+        {/* Rank badge */}
         {rankClass && (
-          <div style={S.rankBadge} className={rankClass}>{candidate.rank}</div>
+          <div style={{
+            position: "absolute", top: 10, right: 10, zIndex: 2,
+            width: 28, height: 28, borderRadius: "50%",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: "0.72rem", fontWeight: 800,
+          }} className={rankClass}>
+            {candidate.rank}
+          </div>
         )}
-        <div style={S.voteCount}>
-          <span style={{color:"var(--gold)"}}>★</span>
+
+        {/* Vote count bottom right */}
+        <div style={{
+          position: "absolute", bottom: 10, right: 10, zIndex: 2,
+          display: "flex", alignItems: "center", gap: 5,
+          background: "rgba(0,0,0,.6)", backdropFilter: "blur(10px)",
+          padding: "4px 10px", borderRadius: 100,
+          fontSize: "0.72rem", color: "var(--orange-pale)",
+          border: "1px solid rgba(255,107,0,.2)",
+        }}>
+          <span style={{ color: "var(--orange)" }}>★</span>
           {candidate.totalVotes.toLocaleString("fr-FR")}
         </div>
       </div>
-      <div style={S.body}>
-        <div style={S.name}>{candidate.name}</div>
-        <div style={S.city}>📍 {candidate.city}</div>
-        <div style={S.actions}>
-          <Link href={`/candidates/${candidate.id}`} style={S.btnProfile}
-            onMouseEnter={e=>{ (e.currentTarget as HTMLElement).style.background="rgba(255,107,0,.08)";(e.currentTarget as HTMLElement).style.borderColor="rgba(255,107,0,.5)"; }}
-            onMouseLeave={e=>{ (e.currentTarget as HTMLElement).style.background="transparent";(e.currentTarget as HTMLElement).style.borderColor="rgba(255,107,0,.3)"; }}
-          >Profil</Link>
-          <Link href={`/vote/${candidate.id}`} style={S.btnVote}
-            onMouseEnter={e=>{ (e.currentTarget as HTMLElement).style.opacity=".85"; }}
-            onMouseLeave={e=>{ (e.currentTarget as HTMLElement).style.opacity="1"; }}
-          >⭐ Voter</Link>
+
+      {/* Body */}
+      <div style={{ padding: "14px 14px 14px" }}>
+        <div style={{
+          fontFamily: "var(--font-body)", fontSize: "0.96rem",
+          fontWeight: 700, color: "var(--text)", marginBottom: 4,
+        }}>
+          {candidate.name}
+        </div>
+        <div style={{
+          fontSize: "0.74rem", color: "var(--text-muted)",
+          marginBottom: 14, display: "flex", alignItems: "center", gap: 4,
+        }}>
+          <span>📍</span> {candidate.city}
+        </div>
+
+        <div style={{ display: "flex", gap: 8 }}>
+          <Link href={`/candidates/${candidate.id}`} style={{
+            flex: 1, padding: "9px 0", textAlign: "center",
+            background: "transparent", color: "var(--orange)",
+            border: "1.5px solid rgba(255,107,0,.3)", borderRadius: 10,
+            fontSize: "0.78rem", textDecoration: "none", fontWeight: 500,
+            transition: "all .2s", display: "block",
+          }}
+            onMouseEnter={e => {
+              (e.currentTarget as HTMLElement).style.background = "rgba(255,107,0,.08)";
+              (e.currentTarget as HTMLElement).style.borderColor = "var(--orange)";
+            }}
+            onMouseLeave={e => {
+              (e.currentTarget as HTMLElement).style.background = "transparent";
+              (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,107,0,.3)";
+            }}
+          >
+            Profil
+          </Link>
+          <Link href={`/vote/${candidate.id}`} style={{
+            flex: 1, padding: "9px 0", textAlign: "center",
+            background: "var(--orange)", color: "#fff",
+            border: "none", borderRadius: 10,
+            fontSize: "0.78rem", textDecoration: "none", fontWeight: 700,
+            transition: "all .2s", display: "block",
+            boxShadow: "0 3px 12px rgba(255,107,0,.25)",
+          }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--orange-light)"; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "var(--orange)"; }}
+          >
+            ⭐ Voter
+          </Link>
         </div>
       </div>
     </div>

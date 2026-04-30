@@ -1,124 +1,54 @@
 "use client";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import BottomNav from "@/components/layout/BottomNav";
 
-import Link from "next/link";
-import Navbar from "@/components/layout/Navbar";
-import Footer from "@/components/layout/Footer";
-
-const whatsappUrl = process.env.NEXT_PUBLIC_WHATSAPP_SUPPORT_URL || "https://wa.me/237680000000";
+const faqs = [
+  { q: "Comment voter ?", a: "Choisissez un candidat, cliquez 'Voter', renseignez votre nom et email, choisissez le montant (100 FCFA = 1 vote) et payez." },
+  { q: "Combien coûte un vote ?", a: "1 vote = 100 FCFA. Vous pouvez voter autant de fois que vous le souhaitez." },
+  { q: "Quels paiements acceptés ?", a: "Fapshi (MTN / Orange Money), CinetPay (Mobile Money) et Stripe (carte bancaire)." },
+  { q: "Mes votes sont-ils instantanés ?", a: "Oui. Dès validation du paiement, vos votes sont comptabilisés dans le classement en temps réel." },
+  { q: "Comment participer au concours ?", a: "Accédez à la page Catégories et cherchez le formulaire de candidature. Validation sous 24h." },
+];
 
 export default function SupportPage() {
+  const router = useRouter();
+  const [open, setOpen] = useState<number|null>(null);
+
   return (
-    <div className="min-h-screen flex flex-col">
-      <Navbar />
-      <main style={{ flex: 1, width: "100%", maxWidth: 1050, margin: "0 auto", padding: "65px 12px 45px" }}>
-        <div style={{ textAlign: "center", marginBottom: 36 }}>
-          <div className="section-tag">Assistance</div>
-          <h1 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(2.4rem,6vw,4rem)", marginBottom: 12 }}>
-            Support concours
-          </h1>
-          <p style={{ color: "var(--text-muted)", maxWidth: 700, margin: "0 auto", lineHeight: 1.8 }}>
-            Une question sur les votes, la validation des paiements ou les candidatures ? Le support officiel est ici.
-          </p>
-        </div>
+    <div className="page-content fade-up">
+      <div className="top-bar">
+        <button onClick={() => router.back()} style={{ width: 32, height: 32, border: "1px solid var(--border)", borderRadius: 8, background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        </button>
+        <span className="top-bar-title">Support</span>
+        <div style={{ width: 32 }} />
+      </div>
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))",
-            gap: 18,
-            marginBottom: 26,
-          }}
-        >
-          {[
-            {
-              title: "WhatsApp direct",
-              desc: "Rejoignez le support le plus rapide pour les questions urgentes et confirmations de paiement.",
-            },
-            {
-              title: "Votes et paiements",
-              desc: "Les votes sont credites automatiquement apres confirmation du paiement par webhook ou verification.",
-            },
-            {
-              title: "Delai entre votes",
-              desc: "Une nouvelle tentative de vote pour un meme candidat est limitee pendant 5 minutes.",
-            },
-          ].map((item) => (
-            <div
-              key={item.title}
-              style={{
-                background: "var(--glass)",
-                border: "1px solid var(--border)",
-                borderRadius: 22,
-                padding: "22px 18px",
-              }}
-            >
-              <h2 style={{ fontFamily: "var(--font-display)", fontSize: "1.5rem", marginBottom: 10 }}>{item.title}</h2>
-              <p style={{ color: "var(--text-muted)", lineHeight: 1.8 }}>{item.desc}</p>
-            </div>
-          ))}
-        </div>
+      <div style={{ padding: "0 16px 20px" }}>
+        <p style={{ fontSize: "0.84rem", color: "var(--text-muted)", marginBottom: 20 }}>Questions fréquentes sur le vote et le concours.</p>
 
-        <div
-          style={{
-            background: "linear-gradient(180deg, rgba(19,8,13,.96), rgba(8,0,3,.96))",
-            border: "1px solid rgba(37,211,102,.22)",
-            borderRadius: 26,
-            padding: "28px 20px",
-            textAlign: "center",
-          }}
-        >
-          <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 8,
-              padding: "6px 12px",
-              borderRadius: 999,
-              color: "#7FF0A0",
-              border: "1px solid rgba(37,211,102,.22)",
-              marginBottom: 14,
-            }}
-          >
-            WhatsApp officiel
+        {faqs.map((f, i) => (
+          <div key={i} style={{ border: `1px solid ${open===i?"#2563EB":"var(--border)"}`, borderRadius: 10, marginBottom: 8, overflow: "hidden", transition: "border-color 0.15s" }}>
+            <button onClick={() => setOpen(open===i?null:i)} style={{ width: "100%", padding: "14px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font)", gap: 12 }}>
+              <span style={{ fontSize: "0.88rem", fontWeight: 600, color: open===i?"#2563EB":"var(--text)", textAlign: "left" }}>{f.q}</span>
+              <span style={{ width: 22, height: 22, borderRadius: 6, background: open===i?"#2563EB":"var(--bg)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, color: open===i?"#fff":"var(--text-muted)", fontSize: "1rem", transition: "all 0.15s", transform: open===i?"rotate(45deg)":"none" }}>+</span>
+            </button>
+            {open===i && <div style={{ padding: "0 14px 14px", fontSize: "0.84rem", color: "var(--text-muted)", lineHeight: 1.7 }}>{f.a}</div>}
           </div>
-          <h2 style={{ fontFamily: "var(--font-display)", fontSize: "2rem", marginBottom: 10 }}>
-            Rejoindre le support maintenant
-          </h2>
-          <p style={{ color: "var(--text-muted)", maxWidth: 620, margin: "0 auto 18px", lineHeight: 1.8 }}>
-            Si vous avez deja paye et que vous attendez encore la confirmation, patientez quelques instants puis revenez sur le classement ou contactez le support.
-          </p>
-          <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
-            <Link
-              href={whatsappUrl}
-              target="_blank"
-              rel="noreferrer"
-              style={{
-                padding: "14px 24px",
-                borderRadius: 16,
-                textDecoration: "none",
-                background: "linear-gradient(135deg,#25D366,#7FF0A0)",
-                color: "#04150A",
-                fontWeight: 700,
-              }}
-            >
-              Ouvrir WhatsApp
-            </Link>
-            <Link
-              href="/candidates"
-              style={{
-                padding: "14px 24px",
-                borderRadius: 16,
-                textDecoration: "none",
-                border: "1px solid var(--border)",
-                color: "var(--text)",
-              }}
-            >
-              Retour aux candidats
-            </Link>
+        ))}
+
+        <div style={{ background: "#EFF6FF", border: "1px solid #DBEAFE", borderRadius: 12, padding: "20px 16px", marginTop: 20, textAlign: "center" }}>
+          <div style={{ fontSize: "1.5rem", marginBottom: 10 }}>💬</div>
+          <div style={{ fontWeight: 700, fontSize: "0.95rem", color: "var(--text)", marginBottom: 6 }}>Contactez-nous</div>
+          <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: 16 }}>Notre équipe est disponible pour vous aider.</p>
+          <div style={{ display: "flex", gap: 8 }}>
+            <a href="https://wa.me/237600000000" className="btn-blue" style={{ flex: 1, fontSize: "0.8rem" }}>📱 WhatsApp</a>
+            <a href="mailto:support@metamissemaster.cm" className="btn-outline" style={{ flex: 1, fontSize: "0.8rem" }}>✉️ Email</a>
           </div>
         </div>
-      </main>
-      <Footer />
+      </div>
+      <BottomNav />
     </div>
   );
 }

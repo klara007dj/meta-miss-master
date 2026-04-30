@@ -1,260 +1,160 @@
 "use client";
-
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import Navbar from "@/components/layout/Navbar";
-import Footer from "@/components/layout/Footer";
-import CandidateCard from "@/components/candidate/CandidateCard";
+import Image from "next/image";
+import BottomNav from "@/components/layout/BottomNav";
 import api from "@/lib/api";
 
 export default function HomePage() {
-  const [miss, setMiss] = useState<any[]>([]);
-  const [master, setMaster] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
-  const [candTab, setCandTab] = useState<"ALL" | "MISS" | "MASTER">("ALL");
+  const [topMiss, setTopMiss] = useState<any[]>([]);
+  const [topMaster, setTopMaster] = useState<any[]>([]);
+  const apiBase = process.env.NEXT_PUBLIC_API_URL?.replace("/api","") || "http://localhost:5000";
 
   useEffect(() => {
-    api.get("/candidates/top?type=MISS&limit=3").then((r) => setMiss(r.data.data || [])).catch(() => {});
-    api.get("/candidates/top?type=MASTER&limit=3").then((r) => setMaster(r.data.data || [])).catch(() => {});
-    api.get("/ranking/stats").then((r) => setStats(r.data.data)).catch(() => {});
+    api.get("/ranking/stats").then(r => setStats(r.data.data)).catch(()=>{});
+    api.get("/candidates/top?type=MISS&limit=3").then(r => setTopMiss(r.data.data || [])).catch(()=>{});
+    api.get("/candidates/top?type=MASTER&limit=3").then(r => setTopMaster(r.data.data || [])).catch(()=>{});
   }, []);
 
-  const displayCands = candTab === "ALL" ? [...miss, ...master] : candTab === "MISS" ? miss : master;
-
-  const S: Record<string, React.CSSProperties> = {
-    page: { minHeight: "100vh" },
-    hero: {
-      position: "relative",
-      zIndex: 1,
-      minHeight: "100vh",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      padding: "60px 12px 35px",
-      textAlign: "center",
-    },
-    eyebrow: {
-      display: "inline-flex",
-      alignItems: "center",
-      gap: 8,
-      fontSize: "0.65rem",
-      letterSpacing: "0.2em",
-      textTransform: "uppercase",
-      color: "var(--gold)",
-      border: "1px solid rgba(255,107,0,.3)",
-      padding: "5px 14px",
-      borderRadius: 100,
-      marginBottom: 18,
-      animation: "fade-up .8s ease both",
-    },
-    eyebrowDot: { width: 4, height: 4, borderRadius: "50%", background: "var(--gold)", display: "inline-block" },
-    title: {
-      fontFamily: "var(--font-display)",
-      fontSize: "clamp(2.2rem,10vw,6rem)",
-      fontWeight: 300,
-      lineHeight: 0.95,
-      letterSpacing: "-0.02em",
-      marginBottom: 14,
-      animation: "fade-up .8s .1s ease both",
-    },
-    sub: {
-      fontSize: "0.88rem",
-      color: "var(--text-muted)",
-      maxWidth: 620,
-      margin: "0 auto 24px",
-      lineHeight: 1.6,
-      animation: "fade-up .8s .2s ease both",
-    },
-    actions: {
-      display: "flex",
-      gap: 10,
-      justifyContent: "center",
-      flexWrap: "wrap",
-      animation: "fade-up .8s .3s ease both",
-    },
-    statsBar: {
-      position: "relative",
-      zIndex: 1,
-      borderTop: "1px solid var(--border)",
-      borderBottom: "1px solid var(--border)",
-      padding: "14px 12px",
-      display: "grid",
-      gridTemplateColumns: "repeat(auto-fit,minmax(120px,1fr))",
-      gap: 12,
-      background: "rgba(17,0,9,.6)",
-      maxWidth: 900,
-      margin: "0 auto",
-    },
-    statVal: { fontFamily: "var(--font-display)", fontSize: "1.4rem", fontWeight: 600, color: "var(--gold-light)", lineHeight: 1 },
-    statLabel: { fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-muted)", marginTop: 3 },
-    candSection: { padding: "56px 12px", maxWidth: 1200, margin: "0 auto", position: "relative", zIndex: 1 },
-    sectionTitle: { fontFamily: "var(--font-display)", fontSize: "clamp(1.6rem,4vw,2.8rem)", fontWeight: 300, color: "var(--text)", letterSpacing: "-0.01em" },
-    sectionTitleEm: { fontStyle: "italic", color: "var(--gold-light)" },
-    tabRow: { display: "flex", gap: 6, justifyContent: "center", marginBottom: 24, flexWrap: "wrap" },
-    grid: { display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(200px,1fr))", gap: 14 },
-    howSection: { padding: "48px 12px", maxWidth: 1040, margin: "0 auto", position: "relative", zIndex: 1 },
-    howGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 12 },
-    howCard: {
-      background: "var(--glass)",
-      border: "1px solid var(--border)",
-      borderRadius: 14,
-      padding: "16px 14px",
-      textAlign: "left",
-      backdropFilter: "blur(10px)",
-      transition: "border-color .2s",
-    },
-    howIcon: {
-      width: 40,
-      height: 40,
-      borderRadius: 10,
-      background: "rgba(255,107,0,.08)",
-      border: "1px solid rgba(255,107,0,.15)",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      fontSize: "1rem",
-      marginBottom: 10,
-    },
-    howTitle: { fontFamily: "var(--font-display)", fontSize: "0.95rem", fontWeight: 600, color: "var(--text)", marginBottom: 6 },
-    howDesc: { fontSize: "0.75rem", color: "var(--text-muted)", lineHeight: 1.6 },
-    orbs: { position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0 },
-  };
+  const topAll = [...topMiss, ...topMaster].slice(0, 4);
 
   return (
-    <div style={S.page}>
-      <div style={S.orbs}>
-        <div style={{ position: "absolute", width: 600, height: 600, borderRadius: "50%", background: "radial-gradient(circle,rgba(255,107,0,.07),transparent)", top: -200, left: -200, filter: "blur(80px)" }} />
-        <div style={{ position: "absolute", width: 500, height: 500, borderRadius: "50%", background: "radial-gradient(circle,rgba(194,24,91,.06),transparent)", bottom: 0, right: -150, filter: "blur(80px)" }} />
+    <div className="page-content fade-up">
+      {/* Top bar */}
+      <div style={{ padding: "20px 20px 12px", background: "#fff" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+          <div>
+            <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>Bonjour 👋</div>
+            <div style={{ fontSize: "1.15rem", fontWeight: 800, color: "var(--text)", lineHeight: 1.3 }}>
+              Qui allez-vous soutenir<br />aujourd'hui ?
+            </div>
+          </div>
+          <button style={{ width: 38, height: 38, borderRadius: "50%", border: "1px solid var(--border)", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2">
+              <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/>
+            </svg>
+          </button>
+        </div>
       </div>
 
-      <Navbar />
-
-      <section style={S.hero}>
-        <div style={{ maxWidth: 900 }}>
-          <div style={S.eyebrow}>
-            <span style={S.eyebrowDot} />
-            Concours officiel · Edition 2025
-            <span style={S.eyebrowDot} />
+      {/* Blue hero card */}
+      <div style={{ padding: "0 16px", marginBottom: 20 }}>
+        <div className="card-blue" style={{ padding: "20px 20px", position: "relative", overflow: "hidden", minHeight: 110 }}>
+          {/* Decorative circles */}
+          <div style={{ position: "absolute", top: -20, right: -20, width: 100, height: 100, borderRadius: "50%", background: "rgba(255,255,255,0.08)" }} />
+          <div style={{ position: "absolute", bottom: -30, right: 30, width: 70, height: 70, borderRadius: "50%", background: "rgba(255,255,255,0.06)" }} />
+          <div style={{ position: "absolute", top: 10, right: 16, fontSize: "2.5rem", opacity: 0.25 }}>👑</div>
+          <div style={{ fontSize: "0.62rem", fontWeight: 700, letterSpacing: "0.15em", color: "rgba(255,255,255,0.7)", marginBottom: 4, textTransform: "uppercase" }}>
+            META
           </div>
-          <h1 style={S.title}>
-            <span style={{ display: "block", fontStyle: "italic", color: "var(--text)" }}>Le Grand Concours</span>
-            <span className="text-gold-gradient" style={{ display: "block" }}>
-              Miss & Master
-            </span>
-            <span
-              style={{
-                display: "block",
-                fontStyle: "italic",
-                color: "var(--text)",
-                fontSize: "0.45em",
-                letterSpacing: "0.12em",
-                marginTop: 10,
-              }}
-            >
-              Votez · Soutenez · Couronnez
-            </span>
-          </h1>
-          <p style={S.sub}>
-            Tout le monde peut voter autant de fois qu il veut. <strong style={{ color: "var(--gold-light)", fontWeight: 500 }}>1 vote = 100 FCFA</strong>. Paiement securise via Fapshi, CinetPay ou Stripe.
-          </p>
-          <div style={S.actions}>
-            <Link href="/candidates" className="btn-primary">
-              Voir les candidats
-            </Link>
-            <Link href="/ranking" className="btn-ghost">
-              Classement live →
-            </Link>
-            <Link href="/candidates/register" className="btn-ghost">
-              Je participe
-            </Link>
+          <div style={{ fontSize: "1.3rem", fontWeight: 800, color: "#fff", lineHeight: 1.1, marginBottom: 2 }}>
+            MISS MASTER
+          </div>
+          <div style={{ fontSize: "0.85rem", fontWeight: 600, color: "rgba(255,255,255,0.8)", marginBottom: 8 }}>
+            2025
+          </div>
+          <div style={{ fontSize: "0.72rem", color: "rgba(255,255,255,0.65)" }}>
+            Votez maintenant · Résultats en direct
           </div>
         </div>
-      </section>
+      </div>
 
-      {stats && (
-        <div style={S.statsBar}>
-          {[
-            { label: "Candidats", val: stats.totalCandidates },
-            { label: "Votes totaux", val: (stats.totalVotesCount || 0).toLocaleString("fr-FR") },
-          ].map((item) => (
-            <div key={item.label} style={{ textAlign: "center" }}>
-              <div style={S.statVal}>{item.val}</div>
-              <div style={S.statLabel}>{item.label}</div>
-            </div>
-          ))}
+      {/* Aperçu stats */}
+      <div className="section-header">
+        <span className="section-title">Aperçu</span>
+        <Link href="/ranking" className="see-all">Voir tout</Link>
+      </div>
+      <div className="stat-grid">
+        <div className="stat-box">
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2">
+              <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>
+              <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>
+            </svg>
+            <span style={{ fontSize: "0.68rem", color: "var(--text-muted)", fontWeight: 500 }}>Candidats</span>
+          </div>
+          <div style={{ fontSize: "1.5rem", fontWeight: 800, color: "var(--text)", lineHeight: 1 }}>
+            {stats?.totalCandidates ?? "—"}
+          </div>
+          <div style={{ fontSize: "0.68rem", color: "var(--text-muted)", marginTop: 2 }}>En compétition</div>
         </div>
-      )}
+        <div className="stat-box">
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2">
+              <path d="M9 12l2 2 4-4"/><rect x="3" y="4" width="18" height="16" rx="2"/>
+            </svg>
+            <span style={{ fontSize: "0.68rem", color: "var(--text-muted)", fontWeight: 500 }}>Votes actifs</span>
+          </div>
+          <div style={{ fontSize: "1.5rem", fontWeight: 800, color: "var(--text)", lineHeight: 1 }}>
+            {stats?.totalVotesCount ? stats.totalVotesCount.toLocaleString("fr-FR") : "—"}
+          </div>
+          <div style={{ fontSize: "0.68rem", color: "var(--text-muted)", marginTop: 2 }}>Aujourd'hui</div>
+        </div>
+        <div className="stat-box">
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2">
+              <circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/>
+            </svg>
+            <span style={{ fontSize: "0.68rem", color: "var(--text-muted)", fontWeight: 500 }}>Jours restants</span>
+          </div>
+          <div style={{ fontSize: "1.5rem", fontWeight: 800, color: "var(--text)", lineHeight: 1 }}>5</div>
+          <div style={{ fontSize: "0.68rem", color: "var(--text-muted)", marginTop: 2 }}>Avant la finale</div>
+        </div>
+        <div className="stat-box">
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2">
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/>
+              <circle cx="12" cy="10" r="3"/>
+            </svg>
+            <span style={{ fontSize: "0.68rem", color: "var(--text-muted)", fontWeight: 500 }}>Participation</span>
+          </div>
+          <div style={{ fontSize: "1.5rem", fontWeight: 800, color: "var(--text)", lineHeight: 1 }}>78%</div>
+          <div style={{ fontSize: "0.68rem", color: "var(--text-muted)", marginTop: 2 }}>Taux global</div>
+        </div>
+      </div>
 
-      <div className="divider" />
+      {/* Categories */}
+      <div className="section-header">
+        <span className="section-title">Catégories</span>
+        <Link href="/candidates" className="see-all">Voir tout</Link>
+      </div>
+      <div style={{ display: "flex", gap: 8, padding: "0 16px", marginBottom: 20 }}>
+        <Link href="/candidates?type=MISS" style={{ textDecoration: "none" }}>
+          <span className="chip active">Miss Master</span>
+        </Link>
+        <Link href="/candidates?type=MASTER" style={{ textDecoration: "none" }}>
+          <span className="chip">Mister Master</span>
+        </Link>
+      </div>
 
-      <section style={S.candSection}>
-        <div style={{ textAlign: "center", marginBottom: 32 }}>
-          <div className="section-tag">Les concurrentes & concurrents</div>
-          <h2 style={S.sectionTitle}>
-            Decouvrez les <em style={S.sectionTitleEm}>candidats</em>
-          </h2>
-        </div>
-        <div style={S.tabRow}>
-          {(["ALL", "MISS", "MASTER"] as const).map((tab) => (
-            <button key={tab} onClick={() => setCandTab(tab)} className={`tab-pill${candTab === tab ? " active" : ""}`}>
-              {tab === "ALL" ? "Tous" : tab === "MISS" ? "Miss" : "Master"}
-            </button>
-          ))}
-        </div>
-        <div style={S.grid}>
-          {displayCands.map((candidate, index) => (
-            <CandidateCard key={candidate.id} candidate={{ ...candidate, rank: index + 1 }} index={index} />
-          ))}
-        </div>
-        <div style={{ textAlign: "center", marginTop: 24 }}>
-          <Link
-            href="/candidates"
-            style={{
-              padding: "10px 24px",
-              border: "1px solid rgba(255,107,0,.4)",
-              color: "var(--gold)",
-              borderRadius: 100,
-              textDecoration: "none",
-              fontSize: "0.8rem",
-              display: "inline-block",
-            }}
-          >
-            Voir tous les candidats →
-          </Link>
-        </div>
-      </section>
-
-      <div className="divider" />
-
-      <section style={S.howSection}>
-        <div style={{ textAlign: "center", marginBottom: 28 }}>
-          <div className="section-tag">Simple & securise</div>
-          <h2 style={S.sectionTitle}>
-            Comment <em style={S.sectionTitleEm}>ca marche</em>
-          </h2>
-        </div>
-        <div style={S.howGrid}>
-          {[
-            { icon: "1", title: "Choisissez un candidat", desc: "Ouvrez son profil puis entrez librement le montant du soutien." },
-            { icon: "2", title: "Payez vos votes", desc: "Le calcul est direct : 100 FCFA par vote, sans limite de repetition." },
-            { icon: "3", title: "Classement en direct", desc: "Les votes valides sont credites et visibles aussitot dans le classement." },
-          ].map((item, index) => (
-            <div
-              key={index}
-              style={{ ...S.howCard, animationDelay: `${index * 0.08}s` }}
-              className="animate-fade-up"
-              onMouseEnter={(e) => ((e.currentTarget as HTMLDivElement).style.borderColor = "rgba(255,107,0,.3)")}
-              onMouseLeave={(e) => ((e.currentTarget as HTMLDivElement).style.borderColor = "var(--border)")}
-            >
-              <div style={S.howIcon}>{item.icon}</div>
-              <div style={S.howTitle}>{item.title}</div>
-              <div style={S.howDesc}>{item.desc}</div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <Footer />
+      {/* Top candidates */}
+      <div className="section-header">
+        <span className="section-title">Top candidats</span>
+        <Link href="/candidates" className="see-all">Voir tout</Link>
+      </div>
+      {topAll.length === 0
+        ? <div style={{ padding: "0 16px" }}>{[1,2,3].map(i => <div key={i} className="shimmer" style={{ height: 70, borderRadius: 10, marginBottom: 8 }} />)}</div>
+        : topAll.map((c, i) => {
+            const photo = c.photoUrl?.startsWith("http") ? c.photoUrl : `${apiBase}${c.photoUrl}`;
+            return (
+              <Link key={c.id} href={`/candidates/${c.id}`} style={{ textDecoration: "none" }}>
+                <div className="candidate-row" style={{ animationDelay: `${i * 0.06}s` }}>
+                  <div className={`rank-badge ${i===0?"gold":i===1?"silver":i===2?"bronze":""}`}>{i+1}</div>
+                  <img src={photo} alt={c.name} className="avatar" style={{ width: 44, height: 44 }} onError={(e:any)=>{e.target.style.display="none"}} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700, fontSize: "0.88rem", color: "var(--text)" }}>{c.name}</div>
+                    <div style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>{c.type === "MISS" ? "Miss Master" : "Mister Master"}</div>
+                  </div>
+                  <Link href={`/vote/${c.id}`} onClick={e => e.stopPropagation()} className="btn-blue" style={{ width: "auto", padding: "7px 16px", fontSize: "0.75rem" }}>
+                    Voter
+                  </Link>
+                </div>
+              </Link>
+            );
+          })
+      }
+      <BottomNav />
     </div>
   );
 }

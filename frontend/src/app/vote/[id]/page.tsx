@@ -1,366 +1,224 @@
 "use client";
-
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import Image from "next/image";
-import Link from "next/link";
-import Navbar from "@/components/layout/Navbar";
-import Footer from "@/components/layout/Footer";
+import BottomNav from "@/components/layout/BottomNav";
 import api from "@/lib/api";
 import toast from "react-hot-toast";
 
-const VOTE_PRICE = 100;
 const PRESETS = [100, 500, 1000, 5000];
-
 const PROVIDERS = [
   { id: "fapshi", label: "Fapshi", sub: "MTN · Orange Money" },
-  { id: "cinetpay", label: "CinetPay", sub: "Mobile Money Afrique" },
+  { id: "cinetpay", label: "CinetPay", sub: "Mobile Money" },
   { id: "stripe", label: "Stripe", sub: "Carte bancaire" },
 ];
 
-export default function VotePage() {
+type Step = "form" | "confirm" | "success";
+
+export default function VoteByIdPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-
   const [candidate, setCandidate] = useState<any>(null);
-  const [amount, setAmount] = useState<number>(500);
-  const [provider, setProvider] = useState<string>("fapshi");
-  const [loading, setLoading] = useState(false);
-  const [contestOpen, setContestOpen] = useState(true);
+  const [amount, setAmount] = useState(500);
+  const [provider, setProvider] = useState("fapshi");
   const [voterName, setVoterName] = useState("");
   const [voterEmail, setVoterEmail] = useState("");
   const [voterPhone, setVoterPhone] = useState("");
-
-  const votes = Math.floor(amount / VOTE_PRICE);
-  const apiBase = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api").replace("/api", "");
+  const [step, setStep] = useState<Step>("form");
+  const [loading, setLoading] = useState(false);
+  const apiBase = process.env.NEXT_PUBLIC_API_URL?.replace("/api","") || "http://localhost:5000";
 
   useEffect(() => {
     if (!id) return;
-
-    api
-      .get(`/candidates/${id}`)
-      .then((r) => setCandidate(r.data.data))
-      .catch(() => router.push("/candidates"));
-
-    api
-      .get("/contest/active")
-      .then((r) => setContestOpen(!!r.data.data))
-      .catch(() => setContestOpen(false));
+    api.get(`/candidates/${id}`).then(r => setCandidate(r.data.data)).catch(() => router.push("/candidates"));
   }, [id, router]);
 
-  const handleVote = async () => {
-    if (!contestOpen) return toast.error("Les votes sont fermes");
-    if (!voterName.trim()) return toast.error("Entrez votre nom");
-    if (!voterEmail.trim()) return toast.error("Entrez votre email");
-    if (amount < 100) return toast.error("Minimum 100 FCFA");
+  const votes = Math.floor(amount / 100);
 
+  const handleConfirm = async () => {
     setLoading(true);
     try {
       const { data } = await api.post("/payments/initialize", {
-        candidateId: id,
-        amount,
-        provider,
-        voterName,
-        voterEmail,
-        voterPhone,
+        candidateId: id, amount, provider, voterName, voterEmail, voterPhone,
       });
-
-      if (data.data.paymentLink) {
+      if (data.data?.paymentLink) {
         window.location.href = data.data.paymentLink;
+      } else {
+        setStep("success");
       }
     } catch (err: any) {
       toast.error(err.response?.data?.message || "Erreur paiement");
+      setStep("form");
     } finally {
       setLoading(false);
     }
   };
 
-  if (!candidate) {
-    return (
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div
-          style={{
-            width: 40,
-            height: 40,
-            border: "2px solid var(--gold)",
-            borderTopColor: "transparent",
-            borderRadius: "50%",
-            animation: "spin 1s linear infinite",
-          }}
-        />
-      </div>
-    );
-  }
+  if (!candidate) return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh" }}>
+      <div style={{ width: 32, height: 32, border: "3px solid #DBEAFE", borderTopColor: "#2563EB", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
+    </div>
+  );
 
   const photo = candidate.photoUrl?.startsWith("http") ? candidate.photoUrl : `${apiBase}${candidate.photoUrl}`;
 
-  const S: Record<string, React.CSSProperties> = {
-    page: { minHeight: "100vh" },
-    wrap: {
-      padding: "65px 10px 45px",
-      maxWidth: 1080,
-      margin: "0 auto",
-      position: "relative",
-      zIndex: 1,
-    },
-    grid: {
-      display: "grid",
-      gridTemplateColumns: "minmax(0, 1fr)",
-      gap: 14,
-    },
-    card: {
-      background: "var(--glass)",
-      border: "1px solid var(--border)",
-      borderRadius: 18,
-      overflow: "hidden",
-      backdropFilter: "blur(20px)",
-    },
-    header: {
-      position: "relative",
-      minHeight: 180,
-      overflow: "hidden",
-      background: "linear-gradient(135deg,#1A0010,#0A0820)",
-      display: "flex",
-      alignItems: "flex-end",
-      padding: 16,
-    },
-    headerBg: {
-      position: "absolute",
-      inset: 0,
-      background:
-        "radial-gradient(ellipse at 30% 40%,rgba(194,24,91,.2),transparent 60%),radial-gradient(ellipse at 70% 60%,rgba(255,107,0,.15),transparent 60%)",
-    },
-    body: { padding: 14 },
-    label: {
-      fontSize: "0.7rem",
-      letterSpacing: "0.1em",
-      textTransform: "uppercase",
-      color: "var(--text-muted)",
-      marginBottom: 8,
-    },
-    input: {
-      width: "100%",
-      padding: "10px 12px",
-      background: "rgba(255,255,255,.04)",
-      border: "1px solid var(--border)",
-      borderRadius: 10,
-      color: "var(--text)",
-      fontSize: "0.85rem",
-      outline: "none",
-    },
-    presets: { display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 6, marginBottom: 12 },
-    inputWrap: { position: "relative", marginBottom: 14 },
-    amountInput: {
-      width: "100%",
-      padding: "12px 40px 12px 14px",
-      background: "rgba(255,255,255,.04)",
-      border: "1px solid var(--border)",
-      borderRadius: 10,
-      color: "var(--text)",
-      fontSize: "1rem",
-      textAlign: "center",
-      outline: "none",
-      fontFamily: "var(--font-display)",
-    },
-    currency: {
-      position: "absolute",
-      right: 14,
-      top: "50%",
-      transform: "translateY(-50%)",
-      fontSize: "0.7rem",
-      color: "var(--text-muted)",
-    },
-    summary: {
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between",
-      background: "rgba(255,107,0,.06)",
-      border: "1px solid rgba(255,107,0,.15)",
-      borderRadius: 10,
-      padding: "11px 14px",
-      marginBottom: 14,
-      fontSize: "0.85rem",
-    },
-    submit: {
-      width: "100%",
-      padding: 12,
-      background: "linear-gradient(135deg,var(--gold),var(--gold-light))",
-      color: "#08000A",
-      border: "none",
-      borderRadius: 10,
-      fontSize: "0.9rem",
-      fontWeight: 700,
-      cursor: "pointer",
-      fontFamily: "var(--font-body)",
-      boxShadow: "0 4px 24px rgba(255,107,0,.3)",
-    },
-  };
+  const inputStyle: React.CSSProperties = { width: "100%", padding: "12px 14px", border: "1.5px solid var(--border)", borderRadius: 8, fontFamily: "var(--font)", fontSize: "0.88rem", color: "var(--text)", background: "#fff", outline: "none", marginBottom: 12 };
 
-  return (
-    <div style={{ ...S.page, display: "flex", flexDirection: "column" }}>
-      <Navbar />
-      <div style={{ ...S.wrap, flex: 1, width: "100%" }}>
-        <Link
-          href={`/candidates/${candidate.id}`}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 8,
-            color: "var(--text-muted)",
-            textDecoration: "none",
-            fontSize: "0.82rem",
-            marginBottom: 20,
-          }}
-        >
-          ← Retour au profil
-        </Link>
+  /* ── CONFIRM step ── */
+  if (step === "confirm") return (
+    <div className="page-content fade-up" style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "40px 20px 80px", textAlign: "center" }}>
+      <div className="top-bar" style={{ position: "fixed", top: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 430, background: "#fff" }}>
+        <button onClick={() => setStep("form")} style={{ width: 32, height: 32, border: "1px solid var(--border)", borderRadius: 8, background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        </button>
+        <span className="top-bar-title">Voter</span>
+        <div style={{ width: 32 }} />
+      </div>
+      <div style={{ marginTop: 60 }}>
+        <div style={{ width: 72, height: 72, borderRadius: "50%", background: "#EFF6FF", border: "2px solid #DBEAFE", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2">
+            <path d="M9 12l2 2 4-4"/><rect x="3" y="4" width="18" height="16" rx="2"/>
+          </svg>
+        </div>
+        <h2 style={{ fontSize: "1.1rem", fontWeight: 800, color: "var(--text)", marginBottom: 6 }}>Confirmer votre vote</h2>
+        <p style={{ fontSize: "0.84rem", color: "var(--text-muted)", marginBottom: 24 }}>Vous êtes sur le point de voter pour</p>
 
-        <div style={S.grid}>
-          <div style={S.card}>
-            <div style={S.header}>
-              <Image src={photo} alt={candidate.name} fill style={{ objectFit: "cover", opacity: 0.45 }} />
-              <div style={S.headerBg} />
-              <div style={{ position: "relative", zIndex: 1 }}>
-                <div style={{ fontFamily: "var(--font-display)", fontSize: "1.8rem", fontWeight: 600, color: "#fff" }}>
-                  {candidate.name}
-                </div>
-                <div style={{ fontSize: "0.86rem", color: "rgba(255,255,255,.72)", lineHeight: 1.7 }}>
-                  {candidate.type === "MISS" ? "MISS" : "MASTER"} · {candidate.city}
-                  <br />
-                  {candidate.totalVotes?.toLocaleString("fr-FR")} votes deja enregistres
-                </div>
-              </div>
-            </div>
-
-            <div style={S.body}>
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))",
-                  gap: 14,
-                  marginBottom: 20,
-                }}
-              >
-                <div>
-                  <div style={S.label}>Votre nom</div>
-                  <input value={voterName} onChange={(e) => setVoterName(e.target.value)} style={S.input} placeholder="Nom complet" />
-                </div>
-                <div>
-                  <div style={S.label}>Votre email</div>
-                  <input value={voterEmail} onChange={(e) => setVoterEmail(e.target.value)} style={S.input} type="email" placeholder="vous@email.com" />
-                </div>
-                <div>
-                  <div style={S.label}>Telephone</div>
-                  <input value={voterPhone} onChange={(e) => setVoterPhone(e.target.value)} style={S.input} placeholder="Optionnel" />
-                </div>
-              </div>
-
-              {!contestOpen && (
-                <div
-                  style={{
-                    background: "rgba(239,83,80,.1)",
-                    border: "1px solid rgba(239,83,80,.3)",
-                    borderRadius: 12,
-                    padding: "12px 16px",
-                    color: "#EF5350",
-                    fontSize: "0.82rem",
-                    textAlign: "center",
-                    marginBottom: 20,
-                  }}
-                >
-                  Les votes sont actuellement fermes
-                </div>
-              )}
-
-              <div style={S.label}>Choisissez un montant</div>
-              <div style={S.presets}>
-                {PRESETS.map((preset) => (
-                  <button
-                    key={preset}
-                    onClick={() => setAmount(preset)}
-                    style={{
-                      padding: "11px 0",
-                      borderRadius: 12,
-                      fontSize: "0.85rem",
-                      cursor: "pointer",
-                      border: amount === preset ? "1px solid var(--gold)" : "1px solid var(--border)",
-                      background: amount === preset ? "rgba(255,107,0,.12)" : "transparent",
-                      color: amount === preset ? "var(--gold-light)" : "var(--text-muted)",
-                    }}
-                  >
-                    {preset.toLocaleString("fr-FR")} FCFA
-                  </button>
-                ))}
-              </div>
-
-              <div style={S.inputWrap}>
-                <input
-                  style={S.amountInput}
-                  type="number"
-                  value={amount}
-                  min={100}
-                  step={100}
-                  onChange={(e) => setAmount(Math.max(100, +e.target.value || 100))}
-                />
-                <span style={S.currency}>FCFA</span>
-              </div>
-
-              <div style={S.summary}>
-                <div>
-                  <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>Vous obtenez</div>
-                  <div style={{ fontFamily: "var(--font-display)", fontSize: "1.6rem", fontWeight: 700, color: "var(--gold-light)" }}>
-                    {votes} vote{votes > 1 ? "s" : ""}
-                  </div>
-                </div>
-                <div style={{ textAlign: "right", fontSize: "0.78rem", color: "var(--text-muted)", lineHeight: 1.7 }}>
-                  1 vote = 100 FCFA
-                  <br />
-                  Vote libre et repetable
-                </div>
-              </div>
-
-              <div style={S.label}>Moyen de paiement</div>
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))",
-                  gap: 8,
-                  marginBottom: 20,
-                }}
-              >
-                {PROVIDERS.map((item) => (
-                  <button
-                    key={item.id}
-                    onClick={() => setProvider(item.id)}
-                    style={{
-                      padding: "12px 10px",
-                      borderRadius: 12,
-                      border: `1px solid ${provider === item.id ? "rgba(255,107,0,.5)" : "var(--border)"}`,
-                      background: provider === item.id ? "rgba(255,107,0,.08)" : "transparent",
-                      cursor: "pointer",
-                      textAlign: "center",
-                    }}
-                  >
-                    <div style={{ fontSize: "0.85rem", fontWeight: 600, color: provider === item.id ? "var(--gold-light)" : "var(--text)" }}>
-                      {item.label}
-                    </div>
-                    <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginTop: 4 }}>{item.sub}</div>
-                  </button>
-                ))}
-              </div>
-
-              <button style={S.submit} onClick={handleVote} disabled={loading || !contestOpen}>
-                {loading ? "Redirection..." : `Payer ${amount.toLocaleString("fr-FR")} FCFA`}
-              </button>
-
-              <div style={{ fontSize: "0.74rem", color: "var(--text-muted)", textAlign: "center", marginTop: 14, lineHeight: 1.7 }}>
-                Paiement securise via Fapshi, CinetPay ou Stripe.
-              </div>
-            </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, background: "var(--bg)", borderRadius: 12, padding: "14px 16px", marginBottom: 28, textAlign: "left" }}>
+          <img src={photo} alt={candidate.name} className="avatar" style={{ width: 52, height: 52 }} />
+          <div>
+            <div style={{ fontWeight: 700, fontSize: "0.92rem", color: "var(--text)" }}>{candidate.name}</div>
+            <div style={{ fontSize: "0.74rem", color: "var(--text-muted)" }}>Région {candidate.city}</div>
+            <div style={{ fontSize: "0.72rem", color: "#2563EB", fontWeight: 600, marginTop: 2 }}>{candidate.type === "MISS" ? "Miss Master" : "Mister Master"}</div>
           </div>
         </div>
+
+        <div style={{ background: "#EFF6FF", borderRadius: 10, padding: "12px 16px", marginBottom: 24, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span style={{ fontSize: "0.82rem", color: "var(--text-muted)" }}>{votes} vote{votes>1?"s":""}</span>
+          <span style={{ fontSize: "0.9rem", fontWeight: 700, color: "#2563EB" }}>{amount.toLocaleString("fr-FR")} FCFA</span>
+        </div>
+
+        <button onClick={handleConfirm} disabled={loading} className="btn-blue" style={{ marginBottom: 10 }}>
+          {loading ? "Redirection..." : "Confirmer mon vote"}
+        </button>
+        <button onClick={() => setStep("form")} className="btn-outline" style={{ marginBottom: 16 }}>Annuler</button>
+        <div className="security-badge"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Votre vote est confidentiel et sécurisé.</div>
       </div>
-      <Footer />
+      <BottomNav />
+    </div>
+  );
+
+  /* ── SUCCESS step ── */
+  if (step === "success") return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 20px", textAlign: "center", minHeight: "100vh", background: "#fff" }}>
+      <div style={{ width: 80, height: 80, borderRadius: "50%", background: "#2563EB", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 24px", boxShadow: "0 8px 32px rgba(37,99,235,0.35)" }} className="scale-in">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5">
+          <path d="M20 6L9 17l-5-5"/>
+        </svg>
+      </div>
+      <h2 style={{ fontSize: "1.3rem", fontWeight: 800, color: "var(--text)", marginBottom: 10 }}>Merci !</h2>
+      <p style={{ fontSize: "0.88rem", color: "var(--text-muted)", lineHeight: 1.7, marginBottom: 32, maxWidth: 260 }}>
+        Votre vote a été pris<br />en compte avec succès.
+      </p>
+      <div style={{ display: "flex", gap: 10, width: "100%", maxWidth: 340 }}>
+        <a href="/ranking" className="btn-blue" style={{ flex: 1 }}>Voir les résultats</a>
+        <a href="/candidates" className="btn-outline" style={{ flex: 1 }}>Voter encore</a>
+      </div>
+      <div className="security-badge" style={{ marginTop: 24 }}>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        Votre vote est confidentiel et sécurisé.
+      </div>
+    </div>
+  );
+
+  /* ── FORM step ── */
+  return (
+    <div className="page-content fade-up">
+      <div className="top-bar">
+        <button onClick={() => router.back()} style={{ width: 32, height: 32, border: "1px solid var(--border)", borderRadius: 8, background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        </button>
+        <span className="top-bar-title">Voter</span>
+        <div style={{ width: 32 }} />
+      </div>
+
+      <div style={{ padding: "0 16px 24px" }}>
+        {/* Candidate mini card */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, background: "var(--blue-light)", borderRadius: 12, padding: "14px", marginBottom: 20 }}>
+          <img src={photo} alt={candidate.name} className="avatar" style={{ width: 52, height: 52 }} />
+          <div>
+            <div style={{ fontWeight: 700, fontSize: "0.92rem", color: "var(--text)" }}>{candidate.name}</div>
+            <div style={{ fontSize: "0.72rem", color: "#2563EB", fontWeight: 600 }}>{candidate.type === "MISS" ? "Miss Master" : "Mister Master"}</div>
+          </div>
+        </div>
+
+        {/* Voter info */}
+        <div style={{ fontSize: "0.75rem", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Vos informations</div>
+        <input style={inputStyle} placeholder="Votre nom complet *" value={voterName} onChange={e => setVoterName(e.target.value)} />
+        <input style={inputStyle} type="email" placeholder="Email *" value={voterEmail} onChange={e => setVoterEmail(e.target.value)} />
+        <input style={inputStyle} placeholder="Téléphone (optionnel)" value={voterPhone} onChange={e => setVoterPhone(e.target.value)} />
+
+        {/* Amount */}
+        <div style={{ fontSize: "0.75rem", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Montant</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8, marginBottom: 10 }}>
+          {PRESETS.map(p => (
+            <button key={p} onClick={() => setAmount(p)} style={{
+              padding: "10px 0", borderRadius: 8, fontSize: "0.78rem", fontWeight: 600,
+              border: `1.5px solid ${amount===p ? "#2563EB" : "var(--border)"}`,
+              background: amount===p ? "#EFF6FF" : "#fff",
+              color: amount===p ? "#2563EB" : "var(--text-muted)",
+              cursor: "pointer", fontFamily: "var(--font)", transition: "all 0.15s",
+            }}>
+              {p >= 1000 ? `${p/1000}k` : p}F
+            </button>
+          ))}
+        </div>
+
+        {/* Summary */}
+        <div style={{ background: "#EFF6FF", borderRadius: 10, padding: "12px 14px", marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span style={{ fontSize: "0.82rem", color: "var(--text-muted)" }}>{votes} vote{votes>1?"s":""}</span>
+          <span style={{ fontSize: "0.9rem", fontWeight: 700, color: "#2563EB" }}>{amount.toLocaleString("fr-FR")} FCFA</span>
+        </div>
+
+        {/* Provider */}
+        <div style={{ fontSize: "0.75rem", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Paiement</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
+          {PROVIDERS.map(p => (
+            <button key={p.id} onClick={() => setProvider(p.id)} style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              padding: "12px 14px", borderRadius: 10,
+              border: `1.5px solid ${provider===p.id ? "#2563EB" : "var(--border)"}`,
+              background: provider===p.id ? "#EFF6FF" : "#fff",
+              cursor: "pointer", fontFamily: "var(--font)", transition: "all 0.15s",
+            }}>
+              <div style={{ textAlign: "left" }}>
+                <div style={{ fontSize: "0.85rem", fontWeight: 700, color: provider===p.id ? "#2563EB" : "var(--text)" }}>{p.label}</div>
+                <div style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>{p.sub}</div>
+              </div>
+              {provider===p.id && (
+                <div style={{ width: 20, height: 20, borderRadius: "50%", background: "#2563EB", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3"><path d="M20 6L9 17l-5-5"/></svg>
+                </div>
+              )}
+            </button>
+          ))}
+        </div>
+
+        <button
+          className="btn-blue"
+          disabled={!voterName.trim() || !voterEmail.trim()}
+          onClick={() => {
+            if (!voterName.trim() || !voterEmail.trim()) { toast.error("Renseignez nom et email"); return; }
+            setStep("confirm");
+          }}
+          style={{ opacity: (!voterName.trim() || !voterEmail.trim()) ? 0.5 : 1 }}
+        >
+          Continuer →
+        </button>
+        <div className="security-badge">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          Votre vote est confidentiel et sécurisé.
+        </div>
+      </div>
+      <BottomNav />
     </div>
   );
 }

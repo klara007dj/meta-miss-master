@@ -57,7 +57,7 @@ export default function AdminPage() {
     statLbl: { fontSize:"0.72rem", color:"var(--text-muted)", marginTop:6, letterSpacing:"0.05em" },
     table:   { background:"var(--glass)", border:"1px solid var(--border)", borderRadius:16, overflow:"hidden", backdropFilter:"blur(10px)" },
     tHead:   { padding:"14px 20px", borderBottom:"1px solid var(--border)", display:"flex", justifyContent:"space-between", alignItems:"center", fontSize:"0.82rem", fontWeight:500, color:"var(--text)" },
-    tRow:    { display:"grid", alignItems:"center", gap:12, padding:"12px 20px", borderBottom:"1px solid rgba(255,107,0,.06)", fontSize:"0.82rem", transition:"background .15s", cursor:"default" },
+    tRow:    { display:"grid", alignItems:"center", gap:12, padding:"12px 20px", borderBottom:"1px solid rgba(201,147,42,.06)", fontSize:"0.82rem", transition:"background .15s", cursor:"default" },
     badge:   { padding:"3px 10px", borderRadius:100, fontSize:"0.68rem", fontWeight:500, letterSpacing:"0.05em" },
     actionBtn:{ width:28, height:28, borderRadius:8, border:"1px solid var(--border)", background:"transparent", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"0.8rem", transition:"all .2s" },
   };
@@ -85,7 +85,7 @@ export default function AdminPage() {
         {navItems.map(n => (
           <button key={n.key} style={{
             ...S.navItem,
-            ...(tab===n.key ? { background:"rgba(255,107,0,.08)", color:"var(--gold-light)", borderColor:"rgba(255,107,0,.2)" } : {}),
+            ...(tab===n.key ? { background:"rgba(201,147,42,.08)", color:"var(--gold-light)", borderColor:"rgba(201,147,42,.2)" } : {}),
           }} onClick={() => setTab(n.key)}>
             <span>{n.icon}</span> {n.label}
           </button>

@@ -1,45 +1,57 @@
 "use client";
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import BottomNav from "@/components/layout/BottomNav";
+import api from "@/lib/api";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import Navbar from "@/components/layout/Navbar";
-
-export default function VotePage() {
-  const router = useRouter();
+export default function VoteListPage() {
+  const [candidates, setCandidates] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const apiBase = process.env.NEXT_PUBLIC_API_URL?.replace("/api","") || "http://localhost:5000";
 
   useEffect(() => {
-    router.replace("/candidates");
-  }, [router]);
+    api.get("/candidates/top?limit=6")
+      .then(r => setCandidates(r.data.data || []))
+      .finally(() => setLoading(false));
+  }, []);
 
   return (
-    <div style={{ minHeight: "100vh" }}>
-      <Navbar />
-      <div
-        style={{
-          minHeight: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 24,
-        }}
-      >
-        <div style={{ textAlign: "center" }}>
-          <div style={{ color: "var(--text)", fontSize: "1.1rem", marginBottom: 12 }}>
-            Redirection vers les candidats...
-          </div>
-          <div
-            style={{
-              width: 34,
-              height: 34,
-              borderRadius: "50%",
-              border: "2px solid rgba(255,107,0,.2)",
-              borderTopColor: "var(--gold)",
-              margin: "0 auto",
-              animation: "spin 1s linear infinite",
-            }}
-          />
-        </div>
+    <div className="page-content fade-up">
+      <div className="top-bar">
+        <div style={{ width: 32 }} />
+        <span className="top-bar-title">Voter</span>
+        <div style={{ width: 32 }} />
       </div>
+      <div style={{ padding: "0 16px 20px" }}>
+        <p style={{ fontSize: "0.84rem", color: "var(--text-muted)", marginBottom: 20, lineHeight: 1.6 }}>
+          Choisissez un candidat pour voter. <strong style={{ color: "var(--text)" }}>1 vote = 100 FCFA</strong>
+        </p>
+        {loading
+          ? [1,2,3].map(i => <div key={i} className="shimmer" style={{ height: 72, borderRadius: 10, marginBottom: 8 }} />)
+          : candidates.map((c, i) => {
+              const photo = c.photoUrl?.startsWith("http") ? c.photoUrl : `${apiBase}${c.photoUrl}`;
+              return (
+                <Link key={c.id} href={`/vote/${c.id}`} style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: "#fff", border: "1px solid var(--border)", borderRadius: 12, marginBottom: 8, transition: "border-color 0.15s" }}
+                  onMouseEnter={e => (e.currentTarget.style.borderColor = "#2563EB")}
+                  onMouseLeave={e => (e.currentTarget.style.borderColor = "var(--border)")}
+                >
+                  <img src={photo} alt={c.name} className="avatar" style={{ width: 48, height: 48 }} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700, fontSize: "0.88rem", color: "var(--text)" }}>{c.name}</div>
+                    <div style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>{c.type === "MISS" ? "Miss Master" : "Mister Master"}</div>
+                  </div>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2">
+                    <path d="M9 18l6-6-6-6"/>
+                  </svg>
+                </Link>
+              );
+            })
+        }
+        <Link href="/candidates" className="btn-outline" style={{ marginTop: 12 }}>
+          Voir tous les candidats
+        </Link>
+      </div>
+      <BottomNav />
     </div>
   );
 }
