@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    domains: ["localhost", "127.0.0.1", "ton-domaine-railway.app"],
+    domains: ["localhost", "meta-miss-master-production.up.railway.app"],
     unoptimized: true,
   },
   env: {

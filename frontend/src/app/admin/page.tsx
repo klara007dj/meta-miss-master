@@ -25,6 +25,7 @@ export default function AdminPage() {
   const [editingCandidate, setEditingCandidate] = useState<any>(null);
   const [editValues, setEditValues] = useState({ name: "", city: "", age: "", bio: "", type: "MISS", status: "PENDING" });
   const [saving, setSaving] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const apiBase = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api").replace("/api", "");
 
@@ -142,95 +143,166 @@ export default function AdminPage() {
 
   return (
     <div className="admin-page admin-layout">
-      <aside className="admin-sidebar">
-        <div className="admin-sidebar-brand">
-          <LayoutDashboard size={20} />
-          <div>
-            <div className="admin-sidebar-label">Meta Miss</div>
-            <div className="admin-sidebar-subtitle">Admin</div>
+      {/* Mobile overlay */}
+      {sidebarOpen && (
+        <div
+          onClick={() => setSidebarOpen(false)}
+          style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.45)", zIndex: 40 }}
+        />
+      )}
+
+      <aside style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        height: "100vh",
+        width: 260,
+        maxWidth: "100%",
+        background: "#fff",
+        borderRight: "1px solid rgba(229,231,235,1)",
+        padding: 20,
+        display: "flex",
+        flexDirection: "column",
+        gap: 22,
+        zIndex: 50,
+        transform: sidebarOpen ? "translateX(0)" : "translateX(-120%)",
+        transition: "transform 0.2s ease",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 12, background: "rgba(59,130,246,0.12)", display: "grid", placeItems: "center" }}>
+              <LayoutDashboard size={18} color="#2563EB" />
+            </div>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#0F172A" }}>Meta Miss</div>
+              <div style={{ fontSize: 12, color: "#64748B" }}>Panneau admin</div>
+            </div>
           </div>
+          <button type="button" onClick={() => setSidebarOpen(false)} style={{ border: "none", background: "transparent", cursor: "pointer", color: "#94A3B8" }}>
+            <XCircle size={20} />
+          </button>
         </div>
-        <nav className="admin-sidebar-nav">
+
+        <nav style={{ display: "grid", gap: 6 }}>
           {navItems.map((item) => (
             <button
               key={item.key}
               type="button"
-              className={tab === item.key ? "admin-sidebar-item active" : "admin-sidebar-item"}
-              onClick={() => setTab(item.key)}
+              onClick={() => { setTab(item.key); setSidebarOpen(false); }}
+              style={{
+                width: "100%",
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                padding: "13px 14px",
+                borderRadius: 18,
+                border: "1px solid transparent",
+                background: tab === item.key ? "rgba(59,130,246,0.08)" : "transparent",
+                color: tab === item.key ? "#2563EB" : "#475569",
+                fontWeight: tab === item.key ? 700 : 600,
+                cursor: "pointer",
+                textAlign: "left",
+              }}
             >
-              <item.Icon size={18} />
+              <item.Icon size={16} />
               <span>{item.label}</span>
             </button>
           ))}
         </nav>
-        <div className="admin-sidebar-footer">
+
+        <div style={{ display: "grid", gap: 10 }}>
           <Link href="/" className="admin-sidebar-link">Retour site</Link>
-          <button type="button" className="admin-sidebar-link danger" onClick={() => { logout(); router.push("/"); }}>Déconnexion</button>
+          <button type="button" className="admin-sidebar-link danger" onClick={() => { logout(); router.push("/"); }}>
+            Déconnexion
+          </button>
         </div>
       </aside>
 
-      <main className="admin-main">
-        <div className="admin-topbar">
-          <div>
-            <h1 className="admin-title">{tab === "overview" ? "Tableau de bord" : tab === "candidates" ? "Candidats" : tab === "payments" ? "Paiements" : tab === "contests" ? "Concours" : "Utilisateurs"}</h1>
-            <p className="admin-subtitle">{tab === "overview" ? "Vue générale du concours" : tab === "candidates" ? "Validez, modifiez ou supprimez les candidatures" : tab === "payments" ? "Suivez les transactions" : tab === "contests" ? "Gestion des concours" : "Liste des utilisateurs"}.</p>
+      <main style={{ padding: "20px 18px 36px", marginLeft: 0, minHeight: "100vh", background: "#F8FAFF" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 18 }}>
+          <button
+            type="button"
+            onClick={() => setSidebarOpen(true)}
+            style={{ width: 42, height: 42, borderRadius: 12, border: "1px solid rgba(226,232,240,1)", background: "#fff", display: "grid", placeItems: "center", cursor: "pointer" }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#334155" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="4" y1="6" x2="20" y2="6" />
+              <line x1="4" y1="12" x2="20" y2="12" />
+              <line x1="4" y1="18" x2="20" y2="18" />
+            </svg>
+          </button>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 20, fontWeight: 800, color: "#0F172A" }}>
+              {tab === "overview" ? "Tableau de bord" : tab === "candidates" ? "Candidats" : tab === "payments" ? "Paiements" : tab === "contests" ? "Concours" : "Utilisateurs"}
+            </div>
+            <p style={{ margin: "6px 0 0", color: "#64748B", fontSize: 14 }}>
+              {tab === "overview" ? "Vue générale du concours" : tab === "candidates" ? "Validez, modifiez ou supprimez les candidatures" : tab === "payments" ? "Suivez les transactions" : tab === "contests" ? "Gestion des concours" : "Liste des utilisateurs"}.
+            </p>
           </div>
-          <button type="button" className="btn-outline" onClick={() => load()}>Rafraîchir</button>
+          <button
+            type="button"
+            onClick={() => load()}
+            style={{ padding: "10px 16px", borderRadius: 12, border: "1px solid rgba(226,232,240,1)", background: "#fff", color: "#0F172A", cursor: "pointer", fontWeight: 600 }}
+          >
+            Rafraîchir
+          </button>
         </div>
 
         {loading ? (
-          <div className="admin-loading"><div className="spinner" /></div>
+          <div style={{ minHeight: 240, display: "grid", placeItems: "center" }}>
+            <div className="spinner" />
+          </div>
         ) : (
           <>
             {tab === "overview" && (
-              <div className="admin-stat-grid">
+              <div style={{ display: "grid", gridTemplateColumns: "repeat( auto-fit, minmax(220px, 1fr) )", gap: 16 }}>
                 {statCards.map((card) => (
-                  <div key={card.label} className="admin-card admin-stat-card">
-                    <div className="admin-stat-icon" style={{ color: card.accent }}><card.Icon size={18} /></div>
-                    <div className="admin-stat-value">{card.val}</div>
-                    <div className="admin-stat-label">{card.label}</div>
+                  <div key={card.label} style={{ padding: 18, borderRadius: 24, background: "#fff", border: "1px solid rgba(229,231,235,1)" }}>
+                    <div style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 38, height: 38, borderRadius: 12, background: "rgba(59,130,246,0.14)", marginBottom: 14, color: card.accent }}>
+                      <card.Icon size={18} />
+                    </div>
+                    <div style={{ fontSize: 28, fontWeight: 800, color: "#111827" }}>{card.val}</div>
+                    <div style={{ marginTop: 6, fontSize: 13, color: "#64748B" }}>{card.label}</div>
                   </div>
                 ))}
               </div>
             )}
 
             {tab === "candidates" && (
-              <section className="admin-card admin-section">
-                <div className="admin-card-head">
+              <section style={{ display: "grid", gap: 14 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
                   <div>
-                    <h2>Liste des candidatures</h2>
-                    <p className="admin-card-text">{candidates.length} candidats enregistrés</p>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: "#0F172A" }}>Liste des candidatures</div>
+                    <div style={{ marginTop: 4, fontSize: 13, color: "#64748B" }}>{candidates.length} candidats enregistrés</div>
                   </div>
                 </div>
-                <div className="admin-table">
-                  <div className="admin-row admin-row-head">
-                    <span>Profil</span>
-                    <span>Type</span>
-                    <span>Statut</span>
-                    <span>Actions</span>
-                  </div>
+                <div style={{ display: "grid", gap: 12 }}>
                   {candidates.map((c) => {
                     const photo = c.photoUrl?.startsWith("http") ? c.photoUrl : `${apiBase}${c.photoUrl}`;
                     return (
-                      <div key={c.id} className="admin-row">
-                        <div className="admin-row-profile">
-                          <div className="admin-avatar"><Image src={photo} alt={c.name} fill style={{ objectFit: "cover" }} onError={(e: any) => { e.target.src = "/placeholder.jpg"; }} /></div>
-                          <div>
-                            <div className="admin-row-name">{c.name}</div>
-                            <div className="admin-row-meta">{c.city} · {c.totalVotes} votes</div>
+                      <div key={c.id} style={{ display: "flex", flexDirection: "column", gap: 12, padding: 18, borderRadius: 22, background: "#fff", border: "1px solid rgba(229,231,235,1)" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                          <div style={{ width: 52, height: 52, borderRadius: 18, overflow: "hidden", background: "#EFF6FF", position: "relative" }}>
+                            <Image src={photo} alt={c.name} fill style={{ objectFit: "cover" }} onError={(e: any) => { e.target.style.display = "none"; }} />
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 15, fontWeight: 700, color: "#0F172A", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.name}</div>
+                            <div style={{ marginTop: 4, fontSize: 13, color: "#64748B" }}>{c.city} · {c.totalVotes} votes</div>
                           </div>
                         </div>
-                        <span className={getTypeClass(c.type)}>{c.type}</span>
-                        <span className={getStatusClass(c.status)}>{c.status}</span>
-                        <div className="admin-actions-row">
-                          <button type="button" className="btn-icon btn-icon-secondary" onClick={() => openEdit(c)}><Edit3 size={16} /></button>
-                          {c.status === "PENDING" && (
-                            <>
-                              <button type="button" className="btn-icon btn-icon-success" onClick={() => approve(c.id)}><CheckCircle2 size={16} /></button>
-                              <button type="button" className="btn-icon btn-icon-danger" onClick={() => reject(c.id)}><XCircle size={16} /></button>
-                            </>
-                          )}
-                          <button type="button" className="btn-icon btn-icon-danger" onClick={() => del(c.id)}><Trash2 size={16} /></button>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 10, justifyContent: "space-between", alignItems: "center" }}>
+                          <span style={{ padding: "6px 10px", borderRadius: 999, background: "rgba(59,130,246,0.08)", color: "#2563EB", fontSize: 12, fontWeight: 700 }}>{c.type}</span>
+                          <span className={getStatusClass(c.status)} style={{ fontSize: 12 }}>{c.status}</span>
+                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                            <button type="button" className="btn-icon btn-icon-secondary" onClick={() => openEdit(c)}><Edit3 size={16} /></button>
+                            {c.status === "PENDING" && (
+                              <> 
+                                <button type="button" className="btn-icon btn-icon-success" onClick={() => approve(c.id)}><CheckCircle2 size={16} /></button>
+                                <button type="button" className="btn-icon btn-icon-danger" onClick={() => reject(c.id)}><XCircle size={16} /></button>
+                              </>
+                            )}
+                            <button type="button" className="btn-icon btn-icon-danger" onClick={() => del(c.id)}><Trash2 size={16} /></button>
+                          </div>
                         </div>
                       </div>
                     );
@@ -240,31 +312,30 @@ export default function AdminPage() {
             )}
 
             {tab === "payments" && (
-              <section className="admin-card admin-section">
-                <div className="admin-card-head">
+              <section style={{ display: "grid", gap: 14 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
                   <div>
-                    <h2>Transactions</h2>
-                    <p className="admin-card-text">{payments.length} paiements</p>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: "#0F172A" }}>Transactions</div>
+                    <div style={{ marginTop: 4, fontSize: 13, color: "#64748B" }}>{payments.length} paiements</div>
                   </div>
                 </div>
-                <div className="admin-table">
-                  <div className="admin-row admin-row-head">
-                    <span>Utilisateur</span>
-                    <span>Montant</span>
-                    <span>Votes</span>
-                    <span>Statut</span>
-                    <span>Date</span>
-                  </div>
+                <div style={{ display: "grid", gap: 12 }}>
                   {payments.map((p) => (
-                    <div key={p.id} className="admin-row">
-                      <div>
-                        <div className="admin-row-name">{p.user?.name}</div>
-                        <div className="admin-row-meta">{p.user?.email}</div>
+                    <div key={p.id} style={{ padding: 18, borderRadius: 22, background: "#fff", border: "1px solid rgba(229,231,235,1)" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
+                        <div>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: "#0F172A" }}>{p.user?.name}</div>
+                          <div style={{ marginTop: 2, fontSize: 13, color: "#64748B" }}>{p.user?.email}</div>
+                        </div>
+                        <div style={{ textAlign: "right" }}>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: "#2563EB" }}>{p.amount?.toLocaleString("fr-FR")} FCFA</div>
+                          <div style={{ fontSize: 12, color: "#64748B", marginTop: 4 }}>{p.votesCount} votes</div>
+                        </div>
                       </div>
-                      <div className="admin-amount">{p.amount?.toLocaleString("fr-FR")} FCFA</div>
-                      <div className="admin-row-meta">{p.votesCount} votes</div>
-                      <span className={getPaymentStatusClass(p.status)}>{p.status}</span>
-                      <div className="admin-row-meta">{new Date(p.createdAt).toLocaleDateString("fr-FR")}</div>
+                      <div style={{ marginTop: 14, display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 10, color: "#475569", fontSize: 12 }}>
+                        <span>{new Date(p.createdAt).toLocaleDateString("fr-FR")}</span>
+                        <span className={getPaymentStatusClass(p.status)}>{p.status}</span>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -272,46 +343,32 @@ export default function AdminPage() {
             )}
 
             {tab === "contests" && (
-              <section className="admin-card admin-section">
-                <div className="admin-card-head">
-                  <div>
-                    <h2>Concours</h2>
-                    <p className="admin-card-text">Fonctions de gestion des concours.</p>
-                  </div>
-                </div>
-                <div style={{ padding: "16px", color: "var(--text-muted)", border: "1px solid var(--border)", borderRadius: "16px" }}>
-                  <p>Gestion des concours à venir. Vous pouvez ouvrir ou fermer un concours et suivre les dates.</p>
-                </div>
+              <section style={{ padding: 20, borderRadius: 24, background: "#fff", border: "1px solid rgba(229,231,235,1)" }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: "#0F172A" }}>Concours</div>
+                <p style={{ marginTop: 10, color: "#64748B", fontSize: 14 }}>Gestion des concours à venir. Vous pouvez ouvrir ou fermer un concours et suivre les dates.</p>
               </section>
             )}
 
             {tab === "users" && (
-              <section className="admin-card admin-section">
-                <div className="admin-card-head">
-                  <div>
-                    <h2>Utilisateurs</h2>
-                    <p className="admin-card-text">{users.length} comptes enregistrés</p>
-                  </div>
+              <section style={{ display: "grid", gap: 12 }}>
+                <div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: "#0F172A" }}>Utilisateurs</div>
+                  <div style={{ marginTop: 4, fontSize: 13, color: "#64748B" }}>{users.length} comptes enregistrés</div>
                 </div>
-                <div className="admin-table">
-                  <div className="admin-row admin-row-head">
-                    <span>Nom</span>
-                    <span>Email</span>
-                    <span>Rôle</span>
-                    <span>Inscrit le</span>
-                  </div>
-                  {users.map((u) => (
-                    <div key={u.id} className="admin-row">
+                {users.map((u) => (
+                  <div key={u.id} style={{ padding: 18, borderRadius: 22, background: "#fff", border: "1px solid rgba(229,231,235,1)" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
                       <div>
-                        <div className="admin-row-name">{u.name}</div>
-                        <div className="admin-row-meta">{u.phone || "-"}</div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: "#0F172A" }}>{u.name}</div>
+                        <div style={{ marginTop: 3, fontSize: 13, color: "#64748B" }}>{u.email}</div>
                       </div>
-                      <div>{u.email}</div>
-                      <div className="status-pill status-pill-blue">{u.role}</div>
-                      <div className="admin-row-meta">{new Date(u.createdAt).toLocaleDateString("fr-FR")}</div>
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+                        <span className="status-pill status-pill-blue" style={{ fontSize: 12 }}>{u.role}</span>
+                        <span style={{ fontSize: 12, color: "#64748B" }}>{new Date(u.createdAt).toLocaleDateString("fr-FR")}</span>
+                      </div>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                ))}
               </section>
             )}
           </>
