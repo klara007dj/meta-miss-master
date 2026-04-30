@@ -53,7 +53,6 @@ async function rejectCandidate(id) {
 }
 
 async function deleteCandidate(id) {
-  // Delete related votes first
   await prisma.vote.deleteMany({ where: { candidateId: id } });
   await prisma.candidate.delete({ where: { id } });
   await emitRankingUpdate();
@@ -94,7 +93,6 @@ async function refundPayment(id) {
   if (!payment) throw new AppError("Paiement introuvable", 404);
   if (payment.status !== "COMPLETED") throw new AppError("Paiement non complété", 400);
 
-  // Rollback votes
   await prisma.$transaction(async (tx) => {
     await tx.vote.deleteMany({ where: { paymentId: id } });
     await tx.candidate.update({
@@ -123,7 +121,8 @@ async function deleteVote(id) {
   await emitRankingUpdate();
 }
 
-async function updateCandidate(id, { name, city, age, bio, type, status }) {
+// ── updateCandidate — supporte maintenant photoUrl ─────────────────────────────
+async function updateCandidate(id, { name, city, age, bio, type, status, photoUrl, instagram, tiktok, snap, whatsappFan, phone }) {
   const candidate = await prisma.candidate.findUnique({ where: { id } });
   if (!candidate) throw new AppError("Candidat introuvable", 404);
 
@@ -150,6 +149,16 @@ async function updateCandidate(id, { name, city, age, bio, type, status }) {
     }
     updateData.status = status;
   }
+  // Mise à jour de la photo si fournie (URL Cloudinary)
+  if (photoUrl !== undefined && photoUrl !== "") {
+    updateData.photoUrl = photoUrl;
+  }
+  // Réseaux sociaux
+  if (instagram !== undefined) updateData.instagram = instagram || null;
+  if (tiktok !== undefined) updateData.tiktok = tiktok || null;
+  if (snap !== undefined) updateData.snap = snap || null;
+  if (whatsappFan !== undefined) updateData.whatsappFan = whatsappFan || null;
+  if (phone !== undefined) updateData.phone = phone || null;
 
   return prisma.candidate.update({
     where: { id },
