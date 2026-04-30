@@ -6,8 +6,8 @@
   "scripts": {
     "postinstall": "prisma generate",
     "dev": "nodemon src/index.js",
-    "start": "npx prisma generate && npx prisma db push --accept-data-loss && node src/index.js",
-    "build": "echo 'No build step for pure Node.js'",
+    "build": "npx prisma generate && npx prisma db push --accept-data-loss",
+    "start": "node src/index.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate deploy",
     "prisma:push": "prisma db push",
