@@ -1,9 +1,14 @@
 const { PrismaClient } = require("@prisma/client");
 const { AppError } = require("../utils/errors");
-const path = require("path");
-const fs = require("fs");
 
 const prisma = new PrismaClient();
+const VALID_TYPES = ["MISS", "MASTER"];
+
+function normalizePagination(page, limit, defaultPage = 1, defaultLimit = 20) {
+  const normalizedPage = Number.isInteger(+page) && +page > 0 ? +page : defaultPage;
+  const normalizedLimit = Number.isInteger(+limit) && +limit > 0 ? +limit : defaultLimit;
+  return { page: normalizedPage, limit: normalizedLimit };
+}
 
 async function createCandidate({ name, type, age, city, bio, photoPath, userId }) {
   if (!["MISS", "MASTER"].includes(type)) {
@@ -30,21 +35,25 @@ async function createCandidate({ name, type, age, city, bio, photoPath, userId }
 }
 
 async function getAllApproved({ type, page, limit }) {
-  const skip = (page - 1) * limit;
+  const { page: safePage, limit: safeLimit } = normalizePagination(page, limit);
+  const skip = (safePage - 1) * safeLimit;
   const where = { status: "APPROVED" };
-  if (type && ["MISS", "MASTER"].includes(type)) where.type = type;
+
+  if (type && VALID_TYPES.includes(type)) {
+    where.type = type;
+  }
 
   const [candidates, total] = await Promise.all([
     prisma.candidate.findMany({
       where,
       orderBy: { totalVotes: "desc" },
       skip,
-      take: limit
+      take: safeLimit
     }),
     prisma.candidate.count({ where })
   ]);
 
-  return { candidates, total, page, totalPages: Math.ceil(total / limit) };
+  return { candidates, total, page: safePage, totalPages: Math.ceil(total / safeLimit) };
 }
 
 async function getById(id) {
@@ -70,13 +79,16 @@ async function getById(id) {
 }
 
 async function getTop({ type, limit }) {
+  const { limit: safeLimit } = normalizePagination(1, limit, 1, 10);
   const where = { status: "APPROVED" };
-  if (type && ["MISS", "MASTER"].includes(type)) where.type = type;
+  if (type && VALID_TYPES.includes(type)) {
+    where.type = type;
+  }
 
   return prisma.candidate.findMany({
     where,
     orderBy: { totalVotes: "desc" },
-    take: limit
+    take: safeLimit
   });
 }
 
