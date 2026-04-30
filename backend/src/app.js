@@ -17,6 +17,7 @@ const adminRoutes = require("./routes/admin.routes");
 const contestRoutes = require("./routes/contest.routes");
 
 const app = express();
+app.set("trust proxy", 1); // trust first proxy
 
 // Security headers
 app.use(helmet({

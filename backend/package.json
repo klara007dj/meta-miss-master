@@ -4,7 +4,7 @@
   "description": "META MISS & MASTER - Backend API",
   "main": "dist/index.js",
   "scripts": {
-    "postinstall": "prisma generate",
+    "postinstall": "npx prisma generate && npx prisma db push --accept-data-loss",
     "dev": "nodemon src/index.js",
     "build": "npx prisma generate && npx prisma db push --accept-data-loss",
     "start": "node src/index.js",
