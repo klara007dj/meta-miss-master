@@ -19,6 +19,7 @@ const schema = z.object({
   tiktok: z.string().optional(),
   snap: z.string().optional(),
   whatsappFan: z.string().optional(),
+  phone: z.string().optional(),
 });
 type FormData = z.infer<typeof schema>;
 
@@ -101,6 +102,9 @@ export default function RegisterPage() {
           <label style={lbl}>Nom complet *</label>
           <input {...register("name")} style={inp} placeholder="Votre nom" />
           {errors.name && <p style={{ color:"#EF4444", fontSize:"0.72rem", marginTop:-8, marginBottom:10 }}>{errors.name.message}</p>}
+
+          <label style={lbl}>Numéro de téléphone (optionnel)</label>
+          <input {...register("phone")} style={inp} placeholder="+237 6XX XXX XXX" />
 
           <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:0 }}>
             <div>

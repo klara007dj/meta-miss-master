@@ -65,6 +65,7 @@ model Candidate {
   tiktok      String?
   snap        String?
   whatsappFan String?
+  phone       String?
   userId      String?
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt

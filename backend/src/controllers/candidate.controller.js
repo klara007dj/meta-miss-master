@@ -18,6 +18,7 @@ class CandidateController {
         tiktok: req.body.tiktok,
         snap: req.body.snap,
         whatsappFan: req.body.whatsappFan,
+        phone: req.body.phone,
         userId: req.user?.id,
       };
       const candidate = await candidateService.createCandidate(data);

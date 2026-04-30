@@ -10,7 +10,7 @@ function normalizePagination(page, limit, defaultPage = 1, defaultLimit = 20) {
   return { page: normalizedPage, limit: normalizedLimit };
 }
 
-async function createCandidate({ name, type, age, city, bio, photoPath, instagram, tiktok, snap, whatsappFan, userId }) {
+async function createCandidate({ name, type, age, city, bio, photoPath, instagram, tiktok, snap, whatsappFan, phone, userId }) {
   if (!["MISS", "MASTER"].includes(type)) {
     throw new AppError("Type invalide. Choisissez MISS ou MASTER", 400);
   }
@@ -33,6 +33,7 @@ async function createCandidate({ name, type, age, city, bio, photoPath, instagra
       tiktok: tiktok?.trim() || null,
       snap: snap?.trim() || null,
       whatsappFan: whatsappFan?.trim() || null,
+      phone: phone?.trim() || null,
       userId: userId || undefined,
     }
   });

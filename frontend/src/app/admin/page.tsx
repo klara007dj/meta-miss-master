@@ -23,6 +23,7 @@ export default function AdminPage() {
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingCandidate, setEditingCandidate] = useState<any>(null);
+  const [viewingCandidate, setViewingCandidate] = useState<any>(null);
   const [editValues, setEditValues] = useState({ name: "", city: "", age: "", bio: "", type: "MISS", status: "PENDING" });
   const [saving, setSaving] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -281,7 +282,7 @@ export default function AdminPage() {
                     const photo = c.photoUrl?.startsWith("http") ? c.photoUrl : `${apiBase}${c.photoUrl}`;
                     return (
                       <div key={c.id} style={{ display: "flex", flexDirection: "column", gap: 12, padding: 18, borderRadius: 22, background: "#fff", border: "1px solid rgba(229,231,235,1)" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                        <div onClick={() => setViewingCandidate(c)} style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer" }}>
                           <div style={{ width: 52, height: 52, borderRadius: 18, overflow: "hidden", background: "#EFF6FF", position: "relative" }}>
                             <Image src={photo} alt={c.name} fill style={{ objectFit: "cover" }} onError={(e: any) => { e.target.style.display = "none"; }} />
                           </div>
@@ -374,6 +375,57 @@ export default function AdminPage() {
           </>
         )}
       </main>
+
+      {viewingCandidate && (
+        <div className="modal-backdrop" onClick={() => setViewingCandidate(null)}>
+          <div className="modal-sheet" onClick={(e) => e.stopPropagation()} style={{ maxHeight: "85vh", overflowY: "auto" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <h3 style={{ margin: 0, fontSize: "1rem", fontWeight: 700 }}>Fiche candidat</h3>
+              <button onClick={() => setViewingCandidate(null)} style={{ border: "none", background: "transparent", cursor: "pointer", fontSize: "1.4rem", color: "var(--text-muted)", lineHeight: 1 }}>×</button>
+            </div>
+
+            <div style={{ width: "100%", height: 180, borderRadius: 12, overflow: "hidden", background: "#EFF6FF", marginBottom: 16, position: "relative" }}>
+              <Image
+                src={viewingCandidate.photoUrl?.startsWith("http") ? viewingCandidate.photoUrl : `${apiBase}${viewingCandidate.photoUrl}`}
+                alt={viewingCandidate.name} fill style={{ objectFit: "cover" }}
+                onError={(e: any) => { e.target.style.display = "none"; }}
+              />
+            </div>
+
+            {[
+              { label: "Nom", value: viewingCandidate.name },
+              { label: "Type", value: viewingCandidate.type },
+              { label: "Statut", value: viewingCandidate.status },
+              { label: "Âge", value: viewingCandidate.age + " ans" },
+              { label: "Ville", value: viewingCandidate.city },
+              { label: "Votes", value: viewingCandidate.totalVotes },
+              { label: "Bio", value: viewingCandidate.bio || "—" },
+              { label: "Instagram", value: viewingCandidate.instagram || "—" },
+              { label: "TikTok", value: viewingCandidate.tiktok || "—" },
+              { label: "Snapchat", value: viewingCandidate.snap || "—" },
+              { label: "WhatsApp Fan", value: viewingCandidate.whatsappFan || "—" },
+              { label: "Téléphone", value: viewingCandidate.phone || "—" },
+              { label: "Soumis le", value: new Date(viewingCandidate.createdAt).toLocaleDateString("fr-FR") },
+            ].map(row => (
+              <div key={row.label} style={{ display: "flex", justifyContent: "space-between", padding: "9px 0", borderBottom: "1px solid var(--border-light)", fontSize: "0.83rem" }}>
+                <span style={{ color: "var(--text-muted)", fontWeight: 500 }}>{row.label}</span>
+                <span style={{ color: "var(--text)", fontWeight: 600, textAlign: "right", maxWidth: "60%", wordBreak: "break-word" }}>{String(row.value)}</span>
+              </div>
+            ))}
+
+            <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+              <button className="btn-blue" style={{ flex: 1, fontSize: "0.82rem" }} onClick={() => { setViewingCandidate(null); openEdit(viewingCandidate); }}>
+                Modifier
+              </button>
+              {viewingCandidate.status === "PENDING" && (
+                <button className="btn-blue" style={{ flex: 1, fontSize: "0.82rem", background: "#10B981" }} onClick={() => { approve(viewingCandidate.id); setViewingCandidate(null); }}>
+                  Approuver
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {editingCandidate && (
         <div className="modal-backdrop" onClick={() => setEditingCandidate(null)}>

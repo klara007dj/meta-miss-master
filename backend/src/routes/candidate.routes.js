@@ -11,7 +11,8 @@ const candidateValidation = [
   body("type").isIn(["MISS", "MASTER"]).withMessage("Type invalide"),
   body("age").isInt({ min: 16, max: 35 }).withMessage("Âge entre 16 et 35"),
   body("city").trim().notEmpty().withMessage("Ville requise"),
-  body("bio").optional().isLength({ max: 500 })
+  body("bio").optional().isLength({ max: 500 }),
+  body("phone").optional().isString().withMessage("Téléphone invalide")
 ];
 
 router.get("/", candidateController.getAll);

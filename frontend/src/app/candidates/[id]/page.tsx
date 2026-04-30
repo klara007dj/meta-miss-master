@@ -4,6 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import BottomNav from "@/components/layout/BottomNav";
 import api from "@/lib/api";
+import toast from "react-hot-toast";
 
 export default function CandidateDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -12,6 +13,27 @@ export default function CandidateDetailPage() {
   const [loading, setLoading] = useState(true);
   const [liked, setLiked] = useState(false);
   const apiBase = process.env.NEXT_PUBLIC_API_URL?.replace("/api","") || "http://localhost:5000";
+
+  useEffect(() => {
+    if (!candidate) return;
+    const likes = JSON.parse(localStorage.getItem("mmm-likes") || "[]");
+    setLiked(likes.includes(candidate.id));
+  }, [candidate]);
+
+  const toggleLike = () => {
+    if (!candidate) return;
+    const likes = JSON.parse(localStorage.getItem("mmm-likes") || "[]");
+    let newLikes;
+    if (liked) {
+      newLikes = likes.filter((id: string) => id !== candidate.id);
+      toast("Retiré des favoris");
+    } else {
+      newLikes = [...likes, candidate.id];
+      toast.success("Ajouté aux favoris ❤️");
+    }
+    localStorage.setItem("mmm-likes", JSON.stringify(newLikes));
+    setLiked(!liked);
+  };
 
   useEffect(() => {
     if (!id) return;
@@ -43,7 +65,22 @@ export default function CandidateDetailPage() {
           </svg>
         </button>
         <span className="top-bar-title">Candidate</span>
-        <button style={{ width: 32, height: 32, border: "1px solid var(--border)", borderRadius: 8, background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+        <button
+          onClick={async () => {
+            const url = window.location.href;
+            if (navigator.share) {
+              await navigator.share({
+                title: candidate.name,
+                text: `Votez pour ${candidate.name} - Meta Miss Master 2025`,
+                url,
+              });
+            } else {
+              await navigator.clipboard.writeText(url);
+              toast.success("Lien copié !");
+            }
+          }}
+          style={{ width: 32, height: 32, border: "1px solid var(--border)", borderRadius: 8, background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
+        >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2">
             <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
             <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
@@ -58,7 +95,7 @@ export default function CandidateDetailPage() {
           #1
         </div>
         <button
-          onClick={() => setLiked(!liked)}
+          onClick={toggleLike}
           style={{ position: "absolute", top: 12, right: 12, width: 36, height: 36, borderRadius: "50%", background: "#fff", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.12)" }}
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill={liked?"#EF4444":"none"} stroke={liked?"#EF4444":"#6B7280"} strokeWidth="2">
@@ -83,43 +120,57 @@ export default function CandidateDetailPage() {
           </p>
         )}
 
-        {/* Social links */}
-        <div style={{ marginBottom: 20 }}>
-          <div style={{ fontSize: "0.82rem", fontWeight: 700, color: "var(--text)", marginBottom: 10 }}>Réseaux sociaux</div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {[
-              { key: "instagram", label: "Instagram", color: "#E1306C", prefix: "https://instagram.com/" },
-              { key: "tiktok", label: "TikTok", color: "#000", prefix: "https://www.tiktok.com/@" },
-              { key: "snap", label: "Snapchat", color: "#FFFC00", prefix: "https://snapchat.com/add/" },
-              { key: "whatsappFan", label: "WhatsApp", color: "#25D366", prefix: "https://wa.me/" },
-            ].map((item) => {
-              const value = candidate.user?.[item.key] || candidate[item.key];
-              if (!value) return null;
-              const url = item.key === "whatsappFan" && !value.startsWith("http") ? `${item.prefix}${value.replace(/[^0-9]/g,"")}` : `${item.prefix}${value}`;
-              return (
-                <button
-                  key={item.key}
-                  type="button"
-                  onClick={() => window.open(url, "_blank")}
-                  style={{
-                    minWidth: 92,
-                    padding: "10px 12px",
-                    borderRadius: 14,
-                    border: "1px solid var(--border)",
-                    background: item.color,
-                    color: item.key === "snap" ? "#000" : "#fff",
-                    fontSize: "0.75rem",
-                    fontWeight: 700,
-                    cursor: "pointer",
-                    textAlign: "center",
-                  }}
-                >
-                  {item.label}
+        {/* Réseaux sociaux */}
+        {(candidate.instagram || candidate.tiktok || candidate.snap || candidate.whatsappFan) && (
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: "0.82rem", fontWeight: 700, color: "var(--text)", marginBottom: 10 }}>Retrouvez-moi sur</div>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+
+              {candidate.instagram && (
+                <button onClick={() => window.open(`https://instagram.com/${candidate.instagram.replace("@", "")}`, "_blank")}
+                  style={{ width: 42, height: 42, borderRadius: 12, border: "none", cursor: "pointer", background: "linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  {/* Instagram SVG */}
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2">
+                    <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+                    <circle cx="12" cy="12" r="4"/>
+                    <circle cx="17.5" cy="6.5" r="1" fill="#fff" stroke="none"/>
+                  </svg>
                 </button>
-              );
-            })}
+              )}
+
+              {candidate.tiktok && (
+                <button onClick={() => window.open(`https://tiktok.com/@${candidate.tiktok.replace("@", "")}`, "_blank")}
+                  style={{ width: 42, height: 42, borderRadius: 12, border: "none", cursor: "pointer", background: "#010101", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  {/* TikTok SVG */}
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="#fff">
+                    <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.69a8.18 8.18 0 004.78 1.52V6.75a4.85 4.85 0 01-1.01-.06z"/>
+                  </svg>
+                </button>
+              )}
+
+              {candidate.snap && (
+                <button onClick={() => window.open(`https://snapchat.com/add/${candidate.snap.replace("@", "")}`, "_blank")}
+                  style={{ width: 42, height: 42, borderRadius: 12, border: "none", cursor: "pointer", background: "#FFFC00", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  {/* Snapchat SVG */}
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="#000">
+                    <path d="M12 2C8.5 2 6 4.5 6 8v1.5c-.5.1-1.5.4-1.5 1s.8.9 1.5 1c-.2.5-.6 1.2-1.5 1.5-.3.1-.5.3-.5.6 0 .4.4.7.8.8.5.1 1 .2 1.2.7.1.2 0 .4-.1.6-.3.4-1 .9-1 1.5 0 .5.4.9.9.9.3 0 .7-.1 1.1-.3.6-.3 1.2-.4 1.6-.1.3.2.5.6.7 1 .3.6.8 1.3 2.3 1.3s2-.7 2.3-1.3c.2-.4.4-.8.7-1 .4-.3 1-.2 1.6.1.4.2.8.3 1.1.3.5 0 .9-.4.9-.9 0-.6-.7-1.1-1-1.5-.1-.2-.2-.4-.1-.6.2-.5.7-.6 1.2-.7.4-.1.8-.4.8-.8 0-.3-.2-.5-.5-.6-.9-.3-1.3-1-1.5-1.5.7-.1 1.5-.4 1.5-1s-1-.9-1.5-1V8c0-3.5-2.5-6-6-6z"/>
+                  </svg>
+                </button>
+              )}
+
+              {candidate.whatsappFan && (
+                <button onClick={() => window.open(candidate.whatsappFan.startsWith("http") ? candidate.whatsappFan : `https://wa.me/${candidate.whatsappFan}`, "_blank")}
+                  style={{ width: 42, height: 42, borderRadius: 12, border: "none", cursor: "pointer", background: "#25D366", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  {/* WhatsApp SVG */}
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="#fff">
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                  </svg>
+                </button>
+              )}
+
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Stats */}
         <div style={{ background: "var(--blue-light)", borderRadius: 12, padding: "14px 16px", marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
