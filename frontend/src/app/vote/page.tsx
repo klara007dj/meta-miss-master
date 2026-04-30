@@ -24,7 +24,7 @@ export default function VoteListPage() {
       </div>
       <div style={{ padding: "0 16px 20px" }}>
         <p style={{ fontSize: "0.84rem", color: "var(--text-muted)", marginBottom: 20, lineHeight: 1.6 }}>
-          Choisissez un candidat pour voter. <strong style={{ color: "var(--text)" }}>1 vote = 100 FCFA</strong>
+          Choisissez un candidat et voter. <strong style={{ color: "var(--text)" }}>1 vote = 100 FCFA</strong>
         </p>
         {loading
           ? [1,2,3].map(i => <div key={i} className="shimmer" style={{ height: 72, borderRadius: 10, marginBottom: 8 }} />)
