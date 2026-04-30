@@ -84,7 +84,7 @@ export default function ProfilePage() {
         {/* Déconnexion */}
         <button
           onClick={() => setShowLogoutConfirm(true)}
-          style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 0", borderBottom: "1px solid var(--border-light)", width: "100%", background: "none", border: "none", cursor: "pointer", borderBottom: "1px solid var(--border-light)" }}
+          style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 0", borderBottom: "1px solid var(--border-light)", width: "100%", background: "none", border: "none", cursor: "pointer" }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <div style={{ width: 36, height: 36, borderRadius: 10, background: "#FEF2F2", display: "flex", alignItems: "center", justifyContent: "center" }}>
