@@ -87,7 +87,7 @@ export default function VoteByIdPage() {
           <div>
             <div style={{ fontWeight: 700, fontSize: "0.92rem", color: "var(--text)" }}>{candidate.name}</div>
             <div style={{ fontSize: "0.74rem", color: "var(--text-muted)" }}>Région {candidate.city}</div>
-            <div style={{ fontSize: "0.72rem", color: "#2563EB", fontWeight: 600, marginTop: 2 }}>{candidate.type === "MISS" ? "Miss Master" : "Mister Master"}</div>
+            <div style={{ fontSize: "0.72rem", color: "#2563EB", fontWeight: 600, marginTop: 2 }}>{candidate.type === "MISS" ? "Miss" : "Master"}</div>
           </div>
         </div>
 
@@ -146,7 +146,7 @@ export default function VoteByIdPage() {
           <img src={photo} alt={candidate.name} className="avatar" style={{ width: 52, height: 52 }} />
           <div>
             <div style={{ fontWeight: 700, fontSize: "0.92rem", color: "var(--text)" }}>{candidate.name}</div>
-            <div style={{ fontSize: "0.72rem", color: "#2563EB", fontWeight: 600 }}>{candidate.type === "MISS" ? "Miss Master" : "Mister Master"}</div>
+            <div style={{ fontSize: "0.72rem", color: "#2563EB", fontWeight: 600 }}>{candidate.type === "MISS" ? "Miss" : "Master"}</div>
           </div>
         </div>
 

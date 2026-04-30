@@ -119,7 +119,7 @@ export default function RegisterPage() {
 
           <label style={lbl}>Catégorie *</label>
           <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:12 }}>
-            {[{v:"MISS",l:"Miss Master"},{v:"MASTER",l:"Mister Master"}].map(o => {
+            {[{v:"MISS",l:"Miss"},{v:"MASTER",l:"Master"}].map(o => {
               const selected = selectedType === o.v;
               return (
                 <label key={o.v} style={{ cursor:"pointer" }}>

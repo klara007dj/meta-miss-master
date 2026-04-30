@@ -67,7 +67,7 @@ export default function RankingPage() {
             color: tab===t ? "#fff" : "var(--text-muted)",
             transition: "all 0.2s",
           }}>
-            {t === "MISS" ? "Miss Master" : "Mister Master"}
+            {t === "MISS" ? "Miss" : "Master"}
           </button>
         ))}
       </div>
