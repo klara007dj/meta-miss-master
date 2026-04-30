@@ -62,7 +62,7 @@ async function loginAdmin({ email, password, propertyNumber, motherFullName }) {
   return { user, ...tokens };
 }
 
-async function registerUser({ name, email, password, phone, tiktok, snap, instagram, whatsappFan }) {
+async function registerUser({ name, email, password, phone }) {
   const normalizedEmail = email.toLowerCase().trim();
   const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } });
   if (existing) {
@@ -76,10 +76,6 @@ async function registerUser({ name, email, password, phone, tiktok, snap, instag
       email: normalizedEmail,
       passwordHash,
       phone: phone?.trim() || null,
-      tiktok: tiktok?.trim() || null,
-      snap: snap?.trim() || null,
-      instagram: instagram?.trim() || null,
-      whatsappFan: whatsappFan?.trim() || null,
       role: "USER",
     },
     select: {
@@ -88,10 +84,6 @@ async function registerUser({ name, email, password, phone, tiktok, snap, instag
       email: true,
       phone: true,
       role: true,
-      tiktok: true,
-      snap: true,
-      instagram: true,
-      whatsappFan: true,
     }
   });
 
@@ -112,10 +104,6 @@ async function loginUser({ email, password }) {
     email: user.email,
     phone: user.phone,
     role: user.role,
-    tiktok: user.tiktok,
-    snap: user.snap,
-    instagram: user.instagram,
-    whatsappFan: user.whatsappFan,
   };
 
   const tokens = generateTokens({ id: user.id, email: user.email, role: user.role });
@@ -139,10 +127,6 @@ async function getMe(userPayload) {
       email: true,
       phone: true,
       role: true,
-      tiktok: true,
-      snap: true,
-      instagram: true,
-      whatsappFan: true,
     }
   });
 

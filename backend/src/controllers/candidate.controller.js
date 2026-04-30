@@ -11,7 +11,15 @@ class CandidateController {
       if (!req.file) {
         return res.status(400).json({ success: false, message: "Photo obligatoire" });
       }
-      const data = { ...req.body, photoPath: req.file.filename, userId: req.user?.id };
+      const data = {
+        ...req.body,
+        photoPath: req.file.filename,
+        instagram: req.body.instagram,
+        tiktok: req.body.tiktok,
+        snap: req.body.snap,
+        whatsappFan: req.body.whatsappFan,
+        userId: req.user?.id,
+      };
       const candidate = await candidateService.createCandidate(data);
       res.status(201).json({ success: true, message: "Candidature soumise, en attente de validation", data: candidate });
     } catch (err) {

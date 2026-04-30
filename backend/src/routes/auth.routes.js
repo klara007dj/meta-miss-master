@@ -18,10 +18,6 @@ const userRegisterValidation = [
   body("email").isEmail().normalizeEmail().withMessage("Email invalide"),
   body("password").isLength({ min: 6 }).withMessage("Mot de passe d'au moins 6 caractères requis"),
   body("phone").optional().trim().isLength({ min: 7 }).withMessage("Téléphone invalide"),
-  body("tiktok").optional().trim(),
-  body("snap").optional().trim(),
-  body("instagram").optional().trim(),
-  body("whatsappFan").optional().trim(),
 ];
 
 const userLoginValidation = [

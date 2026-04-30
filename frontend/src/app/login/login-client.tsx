@@ -21,10 +21,6 @@ export default function LoginClient({ initialTab, redirect }: Props) {
     password: "",
     name: "",
     phone: "",
-    tiktok: "",
-    snap: "",
-    instagram: "",
-    whatsappFan: "",
   });
 
   useEffect(() => {
@@ -61,10 +57,6 @@ export default function LoginClient({ initialTab, redirect }: Props) {
         email: credentials.email,
         password: credentials.password,
         phone: credentials.phone,
-        tiktok: credentials.tiktok,
-        snap: credentials.snap,
-        instagram: credentials.instagram,
-        whatsappFan: credentials.whatsappFan,
       });
       setAuth(data.data.user, data.data.accessToken, data.data.refreshToken);
       router.push(redirect);
@@ -169,34 +161,6 @@ export default function LoginClient({ initialTab, redirect }: Props) {
               type="tel"
               placeholder="Téléphone"
               onChange={(e) => handleChange("phone", e.target.value)}
-              style={inputStyle}
-            />
-            <input
-              value={credentials.tiktok}
-              type="text"
-              placeholder="TikTok (username)"
-              onChange={(e) => handleChange("tiktok", e.target.value)}
-              style={inputStyle}
-            />
-            <input
-              value={credentials.snap}
-              type="text"
-              placeholder="Snapchat (username)"
-              onChange={(e) => handleChange("snap", e.target.value)}
-              style={inputStyle}
-            />
-            <input
-              value={credentials.instagram}
-              type="text"
-              placeholder="Instagram (username)"
-              onChange={(e) => handleChange("instagram", e.target.value)}
-              style={inputStyle}
-            />
-            <input
-              value={credentials.whatsappFan}
-              type="text"
-              placeholder="WhatsApp fan link"
-              onChange={(e) => handleChange("whatsappFan", e.target.value)}
               style={inputStyle}
             />
             <button type="submit" className="btn-blue" style={{ width: "100%", opacity: loading ? 0.7 : 1 }}>

@@ -30,8 +30,8 @@ class AuthController {
         return res.status(422).json({ success: false, errors: errors.array() });
       }
 
-      const { name, email, password, phone, tiktok, snap, instagram, whatsappFan } = req.body;
-      const result = await authService.registerUser({ name, email, password, phone, tiktok, snap, instagram, whatsappFan });
+      const { name, email, password, phone } = req.body;
+      const result = await authService.registerUser({ name, email, password, phone });
       res.status(201).json({ success: true, message: "Inscription réussie", data: result });
     } catch (err) {
       next(err);

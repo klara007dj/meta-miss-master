@@ -15,6 +15,10 @@ const schema = z.object({
   age: z.coerce.number().min(16).max(35),
   city: z.string().min(2, "Ville requise"),
   bio: z.string().max(500).optional(),
+  instagram: z.string().optional(),
+  tiktok: z.string().optional(),
+  snap: z.string().optional(),
+  whatsappFan: z.string().optional(),
 });
 type FormData = z.infer<typeof schema>;
 
@@ -135,6 +139,18 @@ export default function RegisterPage() {
 
           <label style={lbl}>Bio (optionnel)</label>
           <textarea {...register("bio")} rows={3} style={{ ...inp, resize:"none" }} placeholder="Parlez de vous..." />
+
+          <label style={lbl}>Instagram (optionnel)</label>
+          <input {...register("instagram")} style={inp} placeholder="@votre_pseudo" />
+
+          <label style={lbl}>TikTok (optionnel)</label>
+          <input {...register("tiktok")} style={inp} placeholder="@votre_pseudo" />
+
+          <label style={lbl}>Snapchat (optionnel)</label>
+          <input {...register("snap")} style={inp} placeholder="votre_pseudo" />
+
+          <label style={lbl}>Lien Support Fan WhatsApp (optionnel)</label>
+          <input {...register("whatsappFan")} style={inp} placeholder="https://chat.whatsapp.com/..." />
 
           <button type="submit" disabled={submitting} className="btn-blue" style={{ opacity:submitting?0.6:1 }}>
             {submitting ? "Envoi..." : "Soumettre ma candidature"}
