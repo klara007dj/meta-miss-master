@@ -110,6 +110,40 @@ async function loginUser({ email, password }) {
   return { user: publicUser, ...tokens };
 }
 
+async function loginOrRegisterGoogle({ email, name }) {
+  const normalizedEmail = email.toLowerCase().trim();
+  let user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+
+  if (!user) {
+    const passwordHash = await bcrypt.hash(`${normalizedEmail}-${Date.now()}`, 10);
+    user = await prisma.user.create({
+      data: {
+        name: name.trim(),
+        email: normalizedEmail,
+        passwordHash,
+        role: "USER",
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        role: true,
+      }
+    });
+  }
+
+  const publicUser = {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    phone: user.phone,
+    role: user.role,
+  };
+  const tokens = generateTokens({ id: user.id, email: user.email, role: user.role });
+  return { user: publicUser, ...tokens };
+}
+
 async function getMe(userPayload) {
   if (!userPayload) {
     throw new AppError("Utilisateur introuvable", 404);
@@ -156,4 +190,4 @@ async function refresh(refreshToken) {
   }
 }
 
-module.exports = { loginAdmin, registerUser, loginUser, getMe, refresh };
+module.exports = { loginAdmin, registerUser, loginUser, loginOrRegisterGoogle, getMe, refresh };

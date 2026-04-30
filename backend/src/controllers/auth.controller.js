@@ -75,6 +75,21 @@ class AuthController {
       next(err);
     }
   }
+
+  async googleCallback(req, res, next) {
+    try {
+      if (!req.user) {
+        const fallbackUrl = `${process.env.FRONTEND_URL || "http://localhost:3000"}/login?tab=login`;
+        return res.redirect(fallbackUrl);
+      }
+
+      const { accessToken, refreshToken } = req.user;
+      const redirectUrl = `${process.env.FRONTEND_URL || "http://localhost:3000"}/login?tab=login&redirect=/home&token=${accessToken}&refreshToken=${refreshToken}`;
+      res.redirect(redirectUrl);
+    } catch (err) {
+      next(err);
+    }
+  }
 }
 
 module.exports = new AuthController();

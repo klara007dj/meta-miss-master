@@ -5,16 +5,25 @@ type LoginPageProps = {
   searchParams?: {
     redirect?: string;
     tab?: string;
+    token?: string;
+    refreshToken?: string;
   };
 };
 
 export default function LoginPage({ searchParams }: LoginPageProps) {
   const redirect = searchParams?.redirect || "/profile";
   const initialTab = searchParams?.tab === "register" ? "register" : "login";
+  const token = searchParams?.token;
+  const refreshToken = searchParams?.refreshToken;
 
   return (
     <Suspense fallback={<div className="page-content fade-up">Chargement...</div>}>
-      <LoginClient initialTab={initialTab} redirect={redirect} />
+      <LoginClient
+        initialTab={initialTab}
+        redirect={redirect}
+        oauthToken={token}
+        oauthRefreshToken={refreshToken}
+      />
     </Suspense>
   );
 }

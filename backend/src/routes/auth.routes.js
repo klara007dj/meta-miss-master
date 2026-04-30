@@ -1,4 +1,5 @@
 const express = require("express");
+const passport = require("passport");
 const { body } = require("express-validator");
 const authController = require("../controllers/auth.controller");
 const { authenticate } = require("../middlewares/auth");
@@ -24,6 +25,16 @@ const userLoginValidation = [
   body("email").isEmail().normalizeEmail().withMessage("Email invalide"),
   body("password").notEmpty().withMessage("Mot de passe requis"),
 ];
+
+router.get("/google", passport.authenticate("google", { scope: ["profile", "email"] }));
+router.get(
+  "/google/callback",
+  passport.authenticate("google", {
+    session: false,
+    failureRedirect: `${process.env.FRONTEND_URL || "http://localhost:3000"}/login?tab=login`,
+  }),
+  authController.googleCallback
+);
 
 router.post("/login", authRateLimiter, adminLoginValidation, authController.login);
 router.post("/admin/login", authRateLimiter, adminLoginValidation, authController.login);

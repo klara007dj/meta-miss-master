@@ -6,6 +6,7 @@ const path = require("path");
 
 const { globalRateLimiter } = require("./middlewares/rateLimiter");
 const { errorHandler } = require("./middlewares/errorHandler");
+const passport = require("./config/passport");
 
 // Routes
 const authRoutes = require("./routes/auth.routes");
@@ -23,6 +24,8 @@ app.set("trust proxy", 1); // trust first proxy
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
+
+app.use(passport.initialize());
 
 // CORS
 app.use(cors({
