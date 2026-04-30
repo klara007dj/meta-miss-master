@@ -32,7 +32,7 @@ export default function CandidatesPage() {
       {/* Top bar */}
       <div className="top-bar">
         <div style={{ width: 32 }} />
-        <span className="top-bar-title">Miss Master</span>
+        <span className="top-bar-title">Candidates</span>
         <button style={{ width: 32, height: 32, border: "1px solid var(--border)", borderRadius: 8, background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2">
             <line x1="21" y1="4" x2="14" y2="4"/><line x1="10" y1="4" x2="3" y2="4"/>
@@ -55,7 +55,7 @@ export default function CandidatesPage() {
       <div style={{ display: "flex", gap: 8, padding: "0 16px", marginBottom: 8 }}>
         {(["ALL","MISS","MASTER"] as const).map(t => (
           <button key={t} onClick={() => setFilter(t)} className={`chip${filter===t?" active":""}`}>
-            {t === "ALL" ? "Tous" : t === "MISS" ? "Miss Master" : "Mister Master"}
+            {t === "ALL" ? "Tous" : t === "MISS" ? "Miss" : "Master"}
           </button>
         ))}
       </div>
@@ -71,7 +71,16 @@ export default function CandidatesPage() {
               <Link key={c.id} href={`/candidates/${c.id}`} style={{ textDecoration: "none" }}>
                 <div className="candidate-row fade-up" style={{ animationDelay: `${i*0.04}s` }}>
                   <div className={`rank-badge ${rank===1?"gold":rank===2?"silver":rank===3?"bronze":""}`}>{rank}</div>
-                  <img src={photo} alt={c.name} className="avatar" style={{ width: 48, height: 48 }} onError={(e:any) => { e.target.style.background="#EFF6FF"; }} />
+                  <img
+                    src={photo}
+                    alt={c.name}
+                    className="avatar"
+                    style={{ width: 48, height: 48, objectFit: "cover" }}
+                    onError={(e: any) => {
+                      e.target.src = "/placeholder-avatar.png";
+                      e.target.onerror = null;
+                    }}
+                  />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 700, fontSize: "0.88rem", color: "var(--text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.name}</div>
                     <div style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>Région {c.city}</div>
