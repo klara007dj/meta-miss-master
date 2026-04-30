@@ -94,6 +94,23 @@ async function deleteVote(id) {
   await emitRankingUpdate();
 }
 
+async function updateCandidate(id, { name, city, age, bio, type, status }) {
+  const candidate = await prisma.candidate.findUnique({ where: { id } });
+  if (!candidate) throw new AppError("Candidat introuvable", 404);
+
+  return prisma.candidate.update({
+    where: { id },
+    data: {
+      name: name?.trim(),
+      city: city?.trim(),
+      age: age ? +age : undefined,
+      bio: bio === undefined ? undefined : bio,
+      type,
+      status,
+    }
+  });
+}
+
 async function getDashboardStats() {
   const [
     totalUsers, totalCandidates, pendingCandidates,
@@ -134,6 +151,6 @@ async function getAllUsers({ page, limit }) {
 }
 
 module.exports = {
-  getAllCandidates, approveCandidate, rejectCandidate, deleteCandidate,
+  getAllCandidates, approveCandidate, rejectCandidate, updateCandidate, deleteCandidate,
   getAllPayments, refundPayment, deleteVote, getDashboardStats, getAllUsers
 };

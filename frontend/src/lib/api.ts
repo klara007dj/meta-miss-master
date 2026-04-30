@@ -37,7 +37,7 @@ api.interceptors.response.use(
         return api(original);
       } catch {
         useAuthStore.getState().logout();
-        window.location.href = "/xhrisadmin";
+        window.location.href = "/login";
       }
     }
 

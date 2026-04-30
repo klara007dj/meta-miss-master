@@ -43,11 +43,16 @@ model User {
   phone        String?
   passwordHash String
   role         Role      @default(USER)
+  tiktok       String?
+  snap         String?
+  instagram    String?
+  whatsappFan  String?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
   votes        Vote[]
   payments     Payment[]
+  candidates   Candidate[]
 }
 
 model Candidate {
@@ -60,9 +65,11 @@ model Candidate {
   photoUrl    String
   status      CandidateStatus @default(PENDING)
   totalVotes  Int             @default(0)
+  userId      String?
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 
+  user        User?           @relation(fields: [userId], references: [id])
   votes       Vote[]
 }
 

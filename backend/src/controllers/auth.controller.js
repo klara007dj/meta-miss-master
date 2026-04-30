@@ -23,6 +23,36 @@ class AuthController {
     }
   }
 
+  async registerUser(req, res, next) {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(422).json({ success: false, errors: errors.array() });
+      }
+
+      const { name, email, password, phone, tiktok, snap, instagram, whatsappFan } = req.body;
+      const result = await authService.registerUser({ name, email, password, phone, tiktok, snap, instagram, whatsappFan });
+      res.status(201).json({ success: true, message: "Inscription réussie", data: result });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async loginUser(req, res, next) {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(422).json({ success: false, errors: errors.array() });
+      }
+
+      const { email, password } = req.body;
+      const result = await authService.loginUser({ email, password });
+      res.json({ success: true, message: "Connexion réussie", data: result });
+    } catch (err) {
+      next(err);
+    }
+  }
+
   async me(req, res, next) {
     try {
       const user = await authService.getMe(req.user);

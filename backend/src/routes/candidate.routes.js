@@ -17,6 +17,6 @@ const candidateValidation = [
 router.get("/", candidateController.getAll);
 router.get("/top", candidateController.getTopCandidates);
 router.get("/:id", candidateController.getById);
-router.post("/register", upload.single("photo"), candidateValidation, candidateController.register);
+router.post("/register", authenticate, upload.single("photo"), candidateValidation, candidateController.register);
 
 module.exports = router;

@@ -5,7 +5,7 @@ const fs = require("fs");
 
 const prisma = new PrismaClient();
 
-async function createCandidate({ name, type, age, city, bio, photoPath }) {
+async function createCandidate({ name, type, age, city, bio, photoPath, userId }) {
   if (!["MISS", "MASTER"].includes(type)) {
     throw new AppError("Type invalide. Choisissez MISS ou MASTER", 400);
   }
@@ -16,7 +16,16 @@ async function createCandidate({ name, type, age, city, bio, photoPath }) {
   const photoUrl = `/uploads/${photoPath}`;
 
   return prisma.candidate.create({
-    data: { name, type, age: +age, city, bio, photoUrl, status: "PENDING" }
+    data: {
+      name,
+      type,
+      age: +age,
+      city,
+      bio,
+      photoUrl,
+      status: "PENDING",
+      userId: userId || undefined,
+    }
   });
 }
 
@@ -46,6 +55,14 @@ async function getById(id) {
         orderBy: { createdAt: "desc" },
         take: 5,
         select: { count: true, createdAt: true }
+      },
+      user: {
+        select: {
+          tiktok: true,
+          snap: true,
+          instagram: true,
+          whatsappFan: true,
+        }
       }
     }
   });

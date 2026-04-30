@@ -1,22 +1,11 @@
+const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const { PrismaClient } = require("@prisma/client");
 const { AppError } = require("../utils/errors");
 
+const prisma = new PrismaClient();
 const ACCESS_EXPIRY = "2h";
 const REFRESH_EXPIRY = "7d";
-
-function getAdminConfig() {
-  const email = (process.env.ADMIN_EMAIL || "").trim().toLowerCase();
-  const password = (process.env.ADMIN_PASSWORD || "").trim();
-  const propertyNumber = (process.env.ADMIN_PROPERTY_NUMBER || "").trim();
-  const motherFullName = (process.env.ADMIN_MOTHER_FULL_NAME || "").trim().toLowerCase();
-  const displayName = (process.env.ADMIN_DISPLAY_NAME || "Administrateur").trim();
-
-  if (!email || !password || !propertyNumber || !motherFullName) {
-    throw new AppError("Variables admin manquantes sur le serveur", 500);
-  }
-
-  return { email, password, propertyNumber, motherFullName, displayName };
-}
 
 function generateTokens(payload) {
   const accessToken = jwt.sign(payload, process.env.JWT_SECRET, {
@@ -30,14 +19,28 @@ function generateTokens(payload) {
 }
 
 function buildAdminUser() {
-  const config = getAdminConfig();
+  const email = (process.env.ADMIN_EMAIL || "").trim().toLowerCase();
+  const displayName = (process.env.ADMIN_DISPLAY_NAME || "Administrateur").trim();
 
   return {
     id: "env-admin",
-    name: config.displayName,
-    email: config.email,
+    name: displayName,
+    email,
     role: "ADMIN",
   };
+}
+
+function getAdminConfig() {
+  const email = (process.env.ADMIN_EMAIL || "").trim().toLowerCase();
+  const password = (process.env.ADMIN_PASSWORD || "").trim();
+  const propertyNumber = (process.env.ADMIN_PROPERTY_NUMBER || "").trim();
+  const motherFullName = (process.env.ADMIN_MOTHER_FULL_NAME || "").trim().toLowerCase();
+
+  if (!email || !password || !propertyNumber || !motherFullName) {
+    throw new AppError("Variables admin manquantes sur le serveur", 500);
+  }
+
+  return { email, password, propertyNumber, motherFullName };
 }
 
 async function loginAdmin({ email, password, propertyNumber, motherFullName }) {
@@ -59,23 +62,109 @@ async function loginAdmin({ email, password, propertyNumber, motherFullName }) {
   return { user, ...tokens };
 }
 
+async function registerUser({ name, email, password, phone, tiktok, snap, instagram, whatsappFan }) {
+  const normalizedEmail = email.toLowerCase().trim();
+  const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+  if (existing) {
+    throw new AppError("Cet email est déjà utilisé", 409);
+  }
+
+  const passwordHash = await bcrypt.hash(password, 10);
+  const user = await prisma.user.create({
+    data: {
+      name: name.trim(),
+      email: normalizedEmail,
+      passwordHash,
+      phone: phone?.trim() || null,
+      tiktok: tiktok?.trim() || null,
+      snap: snap?.trim() || null,
+      instagram: instagram?.trim() || null,
+      whatsappFan: whatsappFan?.trim() || null,
+      role: "USER",
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      phone: true,
+      role: true,
+      tiktok: true,
+      snap: true,
+      instagram: true,
+      whatsappFan: true,
+    }
+  });
+
+  const tokens = generateTokens({ id: user.id, email: user.email, role: user.role });
+  return { user, ...tokens };
+}
+
+async function loginUser({ email, password }) {
+  const normalizedEmail = email.toLowerCase().trim();
+  const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+  if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
+    throw new AppError("Email ou mot de passe invalide", 401);
+  }
+
+  const publicUser = {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    phone: user.phone,
+    role: user.role,
+    tiktok: user.tiktok,
+    snap: user.snap,
+    instagram: user.instagram,
+    whatsappFan: user.whatsappFan,
+  };
+
+  const tokens = generateTokens({ id: user.id, email: user.email, role: user.role });
+  return { user: publicUser, ...tokens };
+}
+
 async function getMe(userPayload) {
-  if (!userPayload || userPayload.role !== "ADMIN" || userPayload.id !== "env-admin") {
+  if (!userPayload) {
     throw new AppError("Utilisateur introuvable", 404);
   }
 
-  return buildAdminUser();
+  if (userPayload.role === "ADMIN" && userPayload.id === "env-admin") {
+    return buildAdminUser();
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: userPayload.id },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      phone: true,
+      role: true,
+      tiktok: true,
+      snap: true,
+      instagram: true,
+      whatsappFan: true,
+    }
+  });
+
+  if (!user) {
+    throw new AppError("Utilisateur introuvable", 404);
+  }
+
+  return user;
 }
 
 async function refresh(refreshToken) {
   try {
     const payload = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
 
-    if (payload.role !== "ADMIN" || payload.id !== "env-admin") {
-      throw new AppError("Token invalide", 401);
+    if (payload.role === "ADMIN" && payload.id === "env-admin") {
+      const user = buildAdminUser();
+      return generateTokens({ id: user.id, email: user.email, role: user.role });
     }
 
-    const user = buildAdminUser();
+    const user = await prisma.user.findUnique({ where: { id: payload.id } });
+    if (!user) throw new AppError("Token invalide", 401);
+
     return generateTokens({ id: user.id, email: user.email, role: user.role });
   } catch (error) {
     if (error instanceof AppError) throw error;
@@ -83,4 +172,4 @@ async function refresh(refreshToken) {
   }
 }
 
-module.exports = { loginAdmin, getMe, refresh };
+module.exports = { loginAdmin, registerUser, loginUser, getMe, refresh };

@@ -26,6 +26,13 @@ class AdminController {
     } catch (err) { next(err); }
   }
 
+  async updateCandidate(req, res, next) {
+    try {
+      const candidate = await adminService.updateCandidate(req.params.id, req.body);
+      res.json({ success: true, message: "Candidat mis à jour", data: candidate });
+    } catch (err) { next(err); }
+  }
+
   async deleteCandidate(req, res, next) {
     try {
       await adminService.deleteCandidate(req.params.id);

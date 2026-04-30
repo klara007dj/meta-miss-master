@@ -83,19 +83,41 @@ export default function CandidateDetailPage() {
           </p>
         )}
 
-        {/* Social links placeholder */}
+        {/* Social links */}
         <div style={{ marginBottom: 20 }}>
           <div style={{ fontSize: "0.82rem", fontWeight: 700, color: "var(--text)", marginBottom: 10 }}>Réseaux sociaux</div>
-          <div style={{ display: "flex", gap: 8 }}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {[
-              { label: "IG", color: "#E1306C", icon: "📷" },
-              { label: "FB", color: "#1877F2", icon: "f" },
-              { label: "TK", color: "#000", icon: "♪" },
-            ].map(s => (
-              <div key={s.label} style={{ width: 36, height: 36, borderRadius: 10, background: s.color, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: "0.78rem", fontWeight: 700, cursor: "pointer" }}>
-                {s.icon}
-              </div>
-            ))}
+              { key: "instagram", label: "Instagram", color: "#E1306C", prefix: "https://instagram.com/" },
+              { key: "tiktok", label: "TikTok", color: "#000", prefix: "https://www.tiktok.com/@" },
+              { key: "snap", label: "Snapchat", color: "#FFFC00", prefix: "https://snapchat.com/add/" },
+              { key: "whatsappFan", label: "WhatsApp", color: "#25D366", prefix: "https://wa.me/" },
+            ].map((item) => {
+              const value = candidate.user?.[item.key] || candidate[item.key];
+              if (!value) return null;
+              const url = item.key === "whatsappFan" && !value.startsWith("http") ? `${item.prefix}${value.replace(/[^0-9]/g,"")}` : `${item.prefix}${value}`;
+              return (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => window.open(url, "_blank")}
+                  style={{
+                    minWidth: 92,
+                    padding: "10px 12px",
+                    borderRadius: 14,
+                    border: "1px solid var(--border)",
+                    background: item.color,
+                    color: item.key === "snap" ? "#000" : "#fff",
+                    fontSize: "0.75rem",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    textAlign: "center",
+                  }}
+                >
+                  {item.label}
+                </button>
+              );
+            })}
           </div>
         </div>
 

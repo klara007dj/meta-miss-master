@@ -1,10 +1,11 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
 import BottomNav from "@/components/layout/BottomNav";
+import { useAuthStore } from "@/store/authStore";
 import api from "@/lib/api";
 import toast from "react-hot-toast";
 
@@ -19,16 +20,25 @@ type FormData = z.infer<typeof schema>;
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { isAuthenticated } = useAuthStore();
   const [photo, setPhoto] = useState<File|null>(null);
   const [preview, setPreview] = useState<string|null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
 
-  const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
+  const { register, watch, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema), defaultValues: { type: "MISS" },
   });
 
+  useEffect(() => {
+    if (!isAuthenticated) {
+      router.push("/login?redirect=/candidates/register");
+    }
+  }, [isAuthenticated, router]);
+
   const handleFile = (f: File) => { if (f.size > 5*1024*1024) { toast.error("Max 5MB"); return; } setPhoto(f); setPreview(URL.createObjectURL(f)); };
+
+  const selectedType = watch("type");
 
   const onSubmit = async (data: FormData) => {
     if (!photo) { toast.error("Ajoutez une photo"); return; }
@@ -101,14 +111,26 @@ export default function RegisterPage() {
 
           <label style={lbl}>Catégorie *</label>
           <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:12 }}>
-            {[{v:"MISS",l:"Miss Master"},{v:"MASTER",l:"Mister Master"}].map(o => (
-              <label key={o.v} style={{ cursor:"pointer" }}>
-                <input {...register("type")} type="radio" value={o.v} style={{ display:"none" }} />
-                <div style={{ padding:"12px", borderRadius:8, textAlign:"center", border:"1.5px solid var(--border)", fontSize:"0.82rem", fontWeight:600, color:"var(--text)" }}>
-                  {o.l}
-                </div>
-              </label>
-            ))}
+            {[{v:"MISS",l:"Miss Master"},{v:"MASTER",l:"Mister Master"}].map(o => {
+              const selected = selectedType === o.v;
+              return (
+                <label key={o.v} style={{ cursor:"pointer" }}>
+                  <input {...register("type")} type="radio" value={o.v} style={{ display:"none" }} />
+                  <div style={{
+                    padding:"12px",
+                    borderRadius:8,
+                    textAlign:"center",
+                    border:"1.5px solid " + (selected ? "#2563EB" : "var(--border)"),
+                    background: selected ? "#EFF6FF" : "#fff",
+                    color: selected ? "#2563EB" : "var(--text)",
+                    fontSize:"0.82rem",
+                    fontWeight:600,
+                  }}>
+                    {o.l}
+                  </div>
+                </label>
+              );
+            })}
           </div>
 
           <label style={lbl}>Bio (optionnel)</label>

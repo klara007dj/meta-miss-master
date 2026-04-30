@@ -81,6 +81,14 @@ export default function ProfilePage() {
           </Link>
         ))}
 
+        {isAuthenticated && (
+          <div style={{ padding: "16px 0" }}>
+            <Link href="/candidates/register" className="btn-blue" style={{ fontSize: "0.9rem", marginBottom: 12, display: "block" }}>
+              Soumettre ma candidature
+            </Link>
+          </div>
+        )}
+
         {/* Déconnexion */}
         <button
           onClick={() => setShowLogoutConfirm(true)}
@@ -112,8 +120,8 @@ export default function ProfilePage() {
       {/* Not logged in */}
       {!isAuthenticated && (
         <div style={{ padding: "20px 16px 0", display: "flex", flexDirection: "column", gap: 10 }}>
-          <Link href="/candidates/register" className="btn-blue">Se connecter</Link>
-          <Link href="/candidates/register" className="btn-outline">Créer un compte</Link>
+          <Link href="/login" className="btn-blue">Se connecter</Link>
+          <Link href="/login?tab=register" className="btn-outline">Créer un compte</Link>
         </div>
       )}
 

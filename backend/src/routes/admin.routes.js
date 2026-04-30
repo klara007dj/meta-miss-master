@@ -9,6 +9,7 @@ router.get("/stats", adminController.getDashboardStats);
 router.get("/candidates", adminController.getAllCandidates);
 router.patch("/candidates/:id/approve", adminController.approveCandidate);
 router.patch("/candidates/:id/reject", adminController.rejectCandidate);
+router.patch("/candidates/:id", adminController.updateCandidate);
 router.delete("/candidates/:id", adminController.deleteCandidate);
 router.get("/payments", adminController.getAllPayments);
 router.post("/payments/:id/refund", adminController.refundPayment);
