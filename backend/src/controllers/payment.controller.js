@@ -50,11 +50,55 @@ class PaymentController {
       await paymentService.processFapshiWebhook(body);
       res.status(200).json({ message: "OK" });
     } catch (err) {
-      logger.error("Fapshi wh:", err);
+      logger.error("Fapshi webhook error:", err);
       res.status(200).json({ message: "Received" });
     }
   }
 
+  async webhookGeniusPay(req, res) {
+    try {
+      // Vérification de la signature HMAC-SHA256
+      const signature = req.headers["x-webhook-signature"];
+      const timestamp = req.headers["x-webhook-timestamp"];
+      const event = req.headers["x-webhook-event"];
+
+      if (!signature || !timestamp) {
+        logger.warn("GeniusPay webhook: headers manquants");
+        return res.status(401).json({ message: "Headers manquants" });
+      }
+
+      // Vérifier que le webhook n'est pas trop vieux (5 minutes)
+      const now = Math.floor(Date.now() / 1000);
+      if (Math.abs(now - parseInt(timestamp)) > 300) {
+        logger.warn("GeniusPay webhook: timestamp trop vieux");
+        return res.status(400).json({ message: "Timestamp expiré" });
+      }
+
+      // Vérifier la signature
+      const isValid = paymentService.verifyGeniusPaySignature({
+        signature,
+        timestamp,
+        body: req.body, // raw body
+      });
+
+      if (!isValid) {
+        logger.warn("GeniusPay webhook: signature invalide");
+        return res.status(401).json({ message: "Signature invalide" });
+      }
+
+      // Parser le body (il est raw ici)
+      const parsedBody = typeof req.body === "string"
+        ? JSON.parse(req.body)
+        : req.body;
+
+      logger.info(`GeniusPay webhook reçu: event=${event}`);
+      await paymentService.processGeniusPayWebhook(parsedBody);
+      res.status(200).json({ message: "OK" });
+    } catch (err) {
+      logger.error("GeniusPay webhook error:", err);
+      res.status(200).json({ message: "Received" });
+    }
+  }
 
   async history(req, res, next) {
     try {
