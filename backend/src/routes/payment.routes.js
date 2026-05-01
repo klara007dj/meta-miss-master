@@ -6,8 +6,20 @@ const { paymentRateLimiter } = require("../middlewares/rateLimiter");
 
 const router = express.Router();
 
-router.post("/webhook/fapshi", express.raw({ type: "*/*" }), paymentController.webhookFapshi);
+// Webhooks — raw body obligatoire pour la vérification de signature
+router.post(
+  "/webhook/fapshi",
+  express.raw({ type: "*/*" }),
+  paymentController.webhookFapshi
+);
 
+router.post(
+  "/webhook/geniuspay",
+  express.raw({ type: "*/*" }),
+  paymentController.webhookGeniusPay
+);
+
+// Initialize payment
 router.post(
   "/initialize",
   paymentRateLimiter,
