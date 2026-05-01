@@ -4,10 +4,12 @@ import { io } from "socket.io-client";
 import Link from "next/link";
 import BottomNav from "@/components/layout/BottomNav";
 import api from "@/lib/api";
+import { useT } from "@/store/langStore";
 
 interface RC { id: string; name: string; city: string; photoUrl: string; totalVotes: number; rank: number; }
 
 export default function RankingPage() {
+  const t = useT();
   const [tab, setTab] = useState<"MISS"|"MASTER">("MISS");
   const [miss, setMiss] = useState<RC[]>([]);
   const [master, setMaster] = useState<RC[]>([]);
@@ -25,8 +27,6 @@ export default function RankingPage() {
   }, []);
 
   const current = tab === "MISS" ? miss : master;
-  const maxVotes = current[0]?.totalVotes || 1;
-
   const total = current.reduce((sum, c) => sum + c.totalVotes, 0) || 1;
   const pct = (v: number) => Math.round((v / total) * 100);
 
@@ -35,9 +35,9 @@ export default function RankingPage() {
       {/* Top bar */}
       <div className="top-bar">
         <div style={{ width: 32 }} />
-        <span className="top-bar-title">Résultats</span>
-        <button style={{ width: 32, height: 32, border: "1px solid var(--border)", borderRadius: 8, background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2">
+        <span className="top-bar-title">{t.results}</span>
+        <button style={{ width: 32, height: 32, border: "1px solid var(--border)", borderRadius: 8, background: "var(--bg-white)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2">
             <line x1="21" y1="4" x2="14" y2="4"/><line x1="10" y1="4" x2="3" y2="4"/>
             <line x1="21" y1="12" x2="12" y2="12"/><line x1="8" y1="12" x2="3" y2="12"/>
             <circle cx="12" cy="4" r="2"/><circle cx="10" cy="12" r="2"/>
@@ -47,27 +47,27 @@ export default function RankingPage() {
 
       {/* Live indicator */}
       <div style={{ padding: "0 16px 14px", display: "flex", alignItems: "center", gap: 6 }}>
-        <div style={{ fontWeight: 700, fontSize: "0.82rem", color: "var(--text)" }}>Classement actuel</div>
+        <div style={{ fontWeight: 700, fontSize: "0.82rem", color: "var(--text)" }}>{t.currentRanking}</div>
         <div style={{ fontSize: "0.68rem", color: live ? "#10B981" : "var(--text-muted)", display: "flex", alignItems: "center", gap: 4, marginLeft: "auto" }}>
-          <span style={{ width: 6, height: 6, borderRadius: "50%", background: live ? "#10B981" : "#D1D5DB", display: "inline-block", animation: live ? "live-pulse 1.5s infinite" : "none" }} />
-          Mise à jour en temps réel
+          <span style={{ width: 6, height: 6, borderRadius: "50%", background: live ? "#10B981" : "var(--border)", display: "inline-block", animation: live ? "live-pulse 1.5s infinite" : "none" }} />
+          {t.liveUpdate}
         </div>
       </div>
 
       <style>{`@keyframes live-pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }`}</style>
 
       {/* Tabs */}
-      <div style={{ display: "flex", background: "#F3F4F6", borderRadius: 10, margin: "0 16px 20px", padding: 3 }}>
-        {(["MISS","MASTER"] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{
+      <div style={{ display: "flex", background: "var(--bg)", borderRadius: 10, margin: "0 16px 20px", padding: 3 }}>
+        {(["MISS","MASTER"] as const).map(tabOpt => (
+          <button key={tabOpt} onClick={() => setTab(tabOpt)} style={{
             flex: 1, padding: "9px 0",
             borderRadius: 8, fontSize: "0.82rem", fontWeight: 700,
             border: "none", cursor: "pointer", fontFamily: "var(--font)",
-            background: tab===t ? "#2563EB" : "transparent",
-            color: tab===t ? "#fff" : "var(--text-muted)",
+            background: tab===tabOpt ? "#2563EB" : "transparent",
+            color: tab===tabOpt ? "#fff" : "var(--text-muted)",
             transition: "all 0.2s",
           }}>
-            {t === "MISS" ? "Miss" : "Master"}
+            {tabOpt === "MISS" ? "Miss" : "Master"}
           </button>
         ))}
       </div>
@@ -83,21 +83,21 @@ export default function RankingPage() {
                 <div key={c.id} className="fade-up" style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 0", borderBottom: "1px solid var(--border-light)", animationDelay: `${i*0.06}s` }}>
                   <div style={{
                     width: 22, height: 22, borderRadius: "50%", flexShrink: 0,
-                    background: i===0?"#F59E0B":i===1?"#9CA3AF":i===2?"#D97706":"#EFF6FF",
-                    color: i<3?"#fff":"#2563EB",
+                    background: i===0?"#F59E0B":i===1?"#9CA3AF":i===2?"#D97706":"var(--blue-light)",
+                    color: i<3?"#fff":"var(--blue)",
                     display: "flex", alignItems: "center", justifyContent: "center",
                     fontSize: "0.65rem", fontWeight: 800,
                   }}>
                     {i+1}
                   </div>
-                  <img src={photo} alt={c.name} className="avatar" style={{ width: 40, height: 40 }} onError={(e:any)=>{e.target.style.background="#EFF6FF";}} />
+                  <img src={photo} alt={c.name} className="avatar" style={{ width: 40, height: 40 }} onError={(e:any)=>{e.target.style.background="var(--blue-light)";}} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 700, fontSize: "0.85rem", color: "var(--text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.name}</div>
                     <div className="progress-bar" style={{ marginTop: 4 }}>
                       <div className="progress-fill" style={{ width: `${percent}%` }} />
                     </div>
                   </div>
-                  <div style={{ fontSize: "0.82rem", fontWeight: 700, color: "#2563EB", flexShrink: 0, minWidth: 34, textAlign: "right" }}>
+                  <div style={{ fontSize: "0.82rem", fontWeight: 700, color: "var(--blue)", flexShrink: 0, minWidth: 34, textAlign: "right" }}>
                     {percent}%
                   </div>
                 </div>
