@@ -38,7 +38,7 @@ export default function CandidatesPage() {
       const s = new Set(prev);
       if (s.has(id)) s.delete(id);
       else s.add(id);
-      localStorage.setItem(likesKey, JSON.stringify([...s]));
+      localStorage.setItem(likesKey, JSON.stringify(Array.from(s)));
       return s;
     });
   };
