@@ -3,7 +3,6 @@ const cors = require("cors");
 const helmet = require("helmet");
 const morgan = require("morgan");
 const path = require("path");
-
 const { globalRateLimiter } = require("./middlewares/rateLimiter");
 const { errorHandler } = require("./middlewares/errorHandler");
 const passport = require("./config/passport");
@@ -18,7 +17,7 @@ const adminRoutes = require("./routes/admin.routes");
 const contestRoutes = require("./routes/contest.routes");
 
 const app = express();
-app.set("trust proxy", 1); // trust first proxy
+app.set("trust proxy", 1);
 
 // Security headers
 app.use(helmet({
@@ -28,8 +27,23 @@ app.use(helmet({
 app.use(passport.initialize());
 
 // CORS
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  "https://metavote.online",
+  "https://www.metavote.online",
+  "https://meta-miss-master.vercel.app",
+  "http://localhost:3000",
+].filter(Boolean);
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || "http://localhost:3000",
+  origin: function (origin, callback) {
+    // Autoriser les requêtes sans origin (ex: Postman, mobile)
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error(`CORS bloqué pour l'origine: ${origin}`));
+    }
+  },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
   allowedHeaders: ["Content-Type", "Authorization"]
@@ -39,7 +53,6 @@ app.use(cors({
 app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));
 
 // Body parsing
-// Les webhooks /fapshi /cinetpay /stripe gèrent leur raw body dans leurs propres middlewares
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
@@ -53,7 +66,6 @@ app.use("/api/", globalRateLimiter);
 app.get("/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString(), env: process.env.NODE_ENV });
 });
-
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString(), env: process.env.NODE_ENV });
 });
