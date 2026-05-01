@@ -26,17 +26,7 @@ export default function SplashPage() {
     }}>
       <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 0 }}>
         <div style={{ marginBottom: 20 }}>
-          <svg width="72" height="56" viewBox="0 0 72 56" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M6 48L14 20L28 36L36 8L44 36L58 20L66 48H6Z" fill="#2563EB" opacity="0.15"/>
-            <path d="M6 48L14 20L28 36L36 8L44 36L58 20L66 48" stroke="#2563EB" strokeWidth="3.5" strokeLinejoin="round" strokeLinecap="round" fill="none"/>
-            <circle cx="36" cy="8" r="4" fill="#2563EB"/>
-            <circle cx="14" cy="20" r="3.5" fill="#2563EB"/>
-            <circle cx="58" cy="20" r="3.5" fill="#2563EB"/>
-            <rect x="4" y="46" width="64" height="7" rx="3.5" fill="#2563EB"/>
-            <circle cx="24" cy="49.5" r="2" fill="#fff"/>
-            <circle cx="36" cy="49.5" r="2" fill="#fff"/>
-            <circle cx="48" cy="49.5" r="2" fill="#fff"/>
-          </svg>
+          <img src="/favicon-32x32.png" alt="Meta Miss Master logo" width={72} height={72} style={{ display: "block", objectFit: "contain" }} />
         </div>
 
         <div style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.22em", color: "#2563EB", textTransform: "uppercase", marginBottom: 4 }}>
