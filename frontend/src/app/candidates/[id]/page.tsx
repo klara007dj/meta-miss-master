@@ -154,19 +154,11 @@ export default function CandidateDetailPage() {
         </button>
       </div>
 
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, margin: "18px 16px 14px" }}>
-        <button type="button" onClick={handlePrev} disabled={!previousCandidate} style={{ flex: 1, padding: "12px 14px", borderRadius: 16, border: "1px solid var(--border)", background: previousCandidate ? "var(--bg-card)" : "var(--border-light)", color: previousCandidate ? "var(--text)" : "var(--text-muted)", cursor: previousCandidate ? "pointer" : "not-allowed" }}>
-          ← {previousCandidate ? previousCandidate.name.split(" ")[0] : t.previous}
-        </button>
-        <button type="button" onClick={handleNext} disabled={!nextCandidate} style={{ flex: 1, padding: "12px 14px", borderRadius: 16, border: "1px solid var(--border)", background: nextCandidate ? "var(--bg-card)" : "var(--border-light)", color: nextCandidate ? "var(--text)" : "var(--text-muted)", cursor: nextCandidate ? "pointer" : "not-allowed" }}>
-          {nextCandidate ? nextCandidate.name.split(" ")[0] : t.next} →
-        </button>
-      </div>
-      <div style={{ padding: "0 16px 6px", fontSize: "0.78rem", color: "var(--text-muted)", textAlign: "center" }}>
-        {categoryCandidates.length > 0 ? `${currentIndex + 1} / ${categoryCandidates.length}` : "Swipe gauche/droite pour naviguer"}
-      </div>
-
       <style>{`
+        .photo-nav-overlay { position: absolute; left: 12px; right: 12px; bottom: 12px; display: flex; gap: 10px; justify-content: space-between; align-items: center; }
+        .photo-nav-button { flex: 1; min-width: 0; padding: 8px 10px; border-radius: 14px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text); font-size: 0.78rem; font-weight: 700; cursor: pointer; }
+        .photo-nav-button:disabled { background: var(--border-light); color: var(--text-muted); cursor: not-allowed; }
+        .photo-nav-label { position: absolute; left: 12px; right: 12px; bottom: 56px; background: rgba(255,255,255,0.85); border-radius: 999px; padding: 4px 10px; text-align: center; font-size: 0.72rem; color: var(--text-muted); backdrop-filter: blur(8px); }
         .candidate-layout { display: block; }
         .candidate-photo-wrap { position: relative; margin: 0 16px 16px; border-radius: 20px; overflow: hidden; background: var(--bg); }
         .candidate-info { padding: 0 16px 24px; }
@@ -184,6 +176,15 @@ export default function CandidateDetailPage() {
         <div className="candidate-photo-wrap">
           {!imgLoaded && <div className="photo-skeleton" style={{ height: 300 }} />}
           <img src={photo} alt={candidate.name} style={{ width: "100%", height: "auto", maxWidth: "100%", display: imgLoaded ? "block" : "none", objectFit: "contain", transition: "opacity .3s" }} onLoad={() => setImgLoaded(true)} onError={(e: any) => { e.target.style.display = "none"; setImgLoaded(true); }} />
+          <div className="photo-nav-label">{categoryCandidates.length > 0 ? `${currentIndex + 1} / ${categoryCandidates.length}` : "Swipe gauche/droite pour naviguer"}</div>
+          <div className="photo-nav-overlay">
+            <button type="button" onClick={handlePrev} disabled={!previousCandidate} className="photo-nav-button">
+              ←
+            </button>
+            <button type="button" onClick={handleNext} disabled={!nextCandidate} className="photo-nav-button">
+              →
+            </button>
+          </div>
         </div>
 
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 16px 4px", gap: 10 }}>
