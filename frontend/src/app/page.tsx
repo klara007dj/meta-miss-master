@@ -26,9 +26,30 @@ export default function SplashPage() {
     }}>
       <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 0 }}>
         <div style={{ marginBottom: 20, display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
-          <svg width="52" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M2 9l4 6 4-6 4 12 4-12 4 6 4-6v10H2V9z" fill="#FBBF24" />
-            <path d="M6 9.5l3 4.5 3-4.5 3 9 3-9 3 4.5" stroke="#F59E0B" strokeWidth="1" fill="none" />
+          {/* Belle couronne bleue MetaMiss Master */}
+          <svg width="120" height="90" viewBox="0 0 110 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path
+              d="M10 65 L10 45 L28 22 L42 50 L55 10 L68 50 L82 22 L100 45 L100 65 Z"
+              fill="url(#crownGrad)"
+              stroke="#1D4ED8"
+              strokeWidth="1.5"
+              strokeLinejoin="round"
+            />
+            <rect x="10" y="62" width="90" height="10" rx="5" fill="url(#crownGrad)" stroke="#1D4ED8" strokeWidth="1"/>
+            <path d="M18 62 Q55 72 92 62" stroke="#60A5FA" strokeWidth="2" fill="none" strokeLinecap="round"/>
+            <path d="M55 26 L60 34 L55 42 L50 34 Z" fill="white" opacity="0.9"/>
+            <path d="M28 34 L32 40 L28 46 L24 40 Z" fill="white" opacity="0.7"/>
+            <path d="M82 34 L86 40 L82 46 L78 40 Z" fill="white" opacity="0.7"/>
+            <path d="M55 6 L56.2 9.5 L60 9.5 L57 11.5 L58.2 15 L55 13 L51.8 15 L53 11.5 L50 9.5 L53.8 9.5 Z" fill="#60A5FA"/>
+            <path d="M22 18 L22.8 20.5 L25.5 20.5 L23.3 22 L24.1 24.5 L22 23 L19.9 24.5 L20.7 22 L18.5 20.5 L21.2 20.5 Z" fill="#93C5FD" opacity="0.8"/>
+            <path d="M88 18 L88.8 20.5 L91.5 20.5 L89.3 22 L90.1 24.5 L88 23 L85.9 24.5 L86.7 22 L84.5 20.5 L87.2 20.5 Z" fill="#93C5FD" opacity="0.8"/>
+            <defs>
+              <linearGradient id="crownGrad" x1="10" y1="10" x2="100" y2="75" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stopColor="#2563EB"/>
+                <stop offset="50%" stopColor="#1D4ED8"/>
+                <stop offset="100%" stopColor="#1E40AF"/>
+              </linearGradient>
+            </defs>
           </svg>
           <img src="/favicon-32x32.png" alt="Meta Miss Master logo" width={72} height={72} style={{ display: "block", objectFit: "contain" }} />
         </div>
