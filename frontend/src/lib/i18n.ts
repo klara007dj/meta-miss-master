@@ -45,13 +45,11 @@ export const translations = {
     likes: "J'aime",
     noFavorites: "Aucun favori pour l'instant",
     noFavoritesDesc: "Les candidats que vous aimez apparaîtront ici.",
-
     // Home
     greeting: "Bonjour 👋",
     homeTitle: "Qui allez-vous soutenir aujourd'hui ?",
     overview: "Aperçu",
     seeAll: "Voir tout",
-    categories: "Catégories",
     topCandidates: "Top candidats",
     candidates_label: "Candidats",
     activeVotes: "Votes actifs",
@@ -64,7 +62,6 @@ export const translations = {
     // Ranking
     currentRanking: "Classement actuel",
     liveUpdate: "Mise à jour en temps réel",
-    results: "Résultats",
     // Vote / Payment
     voteTitle: "Voter",
     yourInfo: "Vos informations",
@@ -83,7 +80,7 @@ export const translations = {
     voteSuccess: "Votre vote a été pris en compte avec succès.",
     seeResults: "Voir les résultats",
     voteAgain: "Voter encore",
-    // Candidates
+    // Candidates list
     searchPlaceholder: "Rechercher une candidate...",
     all: "Tous",
     noCandidateFound: "Aucun candidat trouvé",
@@ -94,7 +91,7 @@ export const translations = {
     findMeOn: "Retrouvez-moi sur",
     totalVotesLabel: "Total votes",
     oneVoteEquals: "1 vote",
-    // Profile
+    // Profile page
     myProfile: "Mon profil",
     myVotesEmpty: "Aucun vote pour l'instant",
     myVotesEmptyDesc: "Vos votes apparaîtront ici après paiement.",
@@ -102,7 +99,7 @@ export const translations = {
     adminLink: "Administration →",
     loginBtn: "Se connecter",
     createAccount: "Créer un compte",
-    // Support
+    // Support page
     supportFaq: "Questions fréquentes sur le vote et le concours.",
     contactUs: "Contactez-nous",
     teamAvailable: "Notre équipe est disponible pour vous aider.",
@@ -156,13 +153,11 @@ export const translations = {
     likes: "Likes",
     noFavorites: "No favorites yet",
     noFavoritesDesc: "Candidates you like will appear here.",
-
     // Home
     greeting: "Hello 👋",
     homeTitle: "Who are you supporting today?",
     overview: "Overview",
     seeAll: "See all",
-    categories: "Categories",
     topCandidates: "Top candidates",
     candidates_label: "Candidates",
     activeVotes: "Active votes",
@@ -175,7 +170,6 @@ export const translations = {
     // Ranking
     currentRanking: "Current ranking",
     liveUpdate: "Live updates",
-    results: "Results",
     // Vote / Payment
     voteTitle: "Vote",
     yourInfo: "Your information",
@@ -194,7 +188,7 @@ export const translations = {
     voteSuccess: "Your vote has been successfully recorded.",
     seeResults: "See results",
     voteAgain: "Vote again",
-    // Candidates
+    // Candidates list
     searchPlaceholder: "Search a candidate...",
     all: "All",
     noCandidateFound: "No candidate found",
@@ -205,7 +199,7 @@ export const translations = {
     findMeOn: "Find me on",
     totalVotesLabel: "Total votes",
     oneVoteEquals: "1 vote",
-    // Profile
+    // Profile page
     myProfile: "My profile",
     myVotesEmpty: "No votes yet",
     myVotesEmptyDesc: "Your votes will appear here after payment.",
@@ -213,7 +207,7 @@ export const translations = {
     adminLink: "Administration →",
     loginBtn: "Sign in",
     createAccount: "Create an account",
-    // Support
+    // Support page
     supportFaq: "Frequently asked questions about voting and the contest.",
     contactUs: "Contact us",
     teamAvailable: "Our team is available to help you.",
