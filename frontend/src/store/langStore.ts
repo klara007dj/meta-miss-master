@@ -6,7 +6,7 @@ import { translations, type Lang } from "@/lib/i18n";
 interface LangState {
   lang: Lang;
   setLang: (l: Lang) => void;
-  t: typeof translations.fr;
+  t: typeof translations[Lang];
 }
 
 export const useLangStore = create<LangState>()(
