@@ -25,7 +25,11 @@ export default function SplashPage() {
       padding: "60px 28px 40px",
     }}>
       <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 0 }}>
-        <div style={{ marginBottom: 20 }}>
+        <div style={{ marginBottom: 20, display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+          <svg width="52" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M2 9l4 6 4-6 4 12 4-12 4 6 4-6v10H2V9z" fill="#FBBF24" />
+            <path d="M6 9.5l3 4.5 3-4.5 3 9 3-9 3 4.5" stroke="#F59E0B" strokeWidth="1" fill="none" />
+          </svg>
           <img src="/favicon-32x32.png" alt="Meta Miss Master logo" width={72} height={72} style={{ display: "block", objectFit: "contain" }} />
         </div>
 
