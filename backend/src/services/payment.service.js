@@ -1,6 +1,7 @@
 const { PrismaClient } = require("@prisma/client");
 const axios = require("axios");
 const bcrypt = require("bcryptjs");
+const crypto = require("crypto");
 const { v4: uuidv4 } = require("uuid");
 const { AppError } = require("../utils/errors");
 const logger = require("../utils/logger");
@@ -17,6 +18,8 @@ function amountToVotes(amount) {
   return Math.floor(amount / VOTE_PRICE);
 }
 
+// ─── VOTER ────────────────────────────────────────────────────────────────────
+
 async function findOrCreateVoter({ voterName, voterEmail, voterPhone }) {
   const email = voterEmail.toLowerCase().trim();
   const name = voterName.trim();
@@ -27,7 +30,6 @@ async function findOrCreateVoter({ voterName, voterEmail, voterPhone }) {
     if (existing.role === "ADMIN") {
       throw new AppError("Cette adresse email ne peut pas etre utilisee pour voter", 400);
     }
-
     return prisma.user.update({
       where: { id: existing.id },
       data: { name, phone },
@@ -35,17 +37,12 @@ async function findOrCreateVoter({ voterName, voterEmail, voterPhone }) {
   }
 
   const passwordHash = await bcrypt.hash(uuidv4(), 10);
-
   return prisma.user.create({
-    data: {
-      email,
-      name,
-      phone,
-      passwordHash,
-      role: "USER",
-    },
+    data: { email, name, phone, passwordHash, role: "USER" },
   });
 }
+
+// ─── FAPSHI ───────────────────────────────────────────────────────────────────
 
 async function initFapshi({ txRef, amount, userEmail, candidateName, votesCount }) {
   const response = await axios.post(
@@ -74,15 +71,19 @@ async function initFapshi({ txRef, amount, userEmail, candidateName, votesCount 
 }
 
 async function verifyFapshi(transId) {
-  const response = await axios.get(`https://live.fapshi.com/payment-status/${transId}`, {
-    headers: {
-      apiuser: process.env.FAPSHI_API_USER,
-      apikey: process.env.FAPSHI_API_KEY,
+  const response = await axios.get(
+    `https://live.fapshi.com/payment-status/${transId}`,
+    {
+      headers: {
+        apiuser: process.env.FAPSHI_API_USER,
+        apikey: process.env.FAPSHI_API_KEY,
+      },
     },
-  });
-
+  );
   return response.data;
 }
+
+// ─── PAYPAL ───────────────────────────────────────────────────────────────────
 
 async function getPayPalToken() {
   if (!process.env.PAYPAL_CLIENT_ID || !process.env.PAYPAL_SECRET) {
@@ -97,9 +98,7 @@ async function getPayPalToken() {
         username: process.env.PAYPAL_CLIENT_ID,
         password: process.env.PAYPAL_SECRET,
       },
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
     },
   );
 
@@ -110,7 +109,7 @@ async function getPayPalToken() {
   return response.data.access_token;
 }
 
-async function initPayPal({ txRef, amount, userEmail, userName, candidateName, votesCount }) {
+async function initPayPal({ txRef, amount, candidateName, votesCount }) {
   const token = await getPayPalToken();
   const value = (Math.max(100, amount) / PAYPAL_XAF_RATE).toFixed(2);
 
@@ -120,10 +119,7 @@ async function initPayPal({ txRef, amount, userEmail, userName, candidateName, v
       intent: "CAPTURE",
       purchase_units: [
         {
-          amount: {
-            currency_code: PAYPAL_CURRENCY,
-            value,
-          },
+          amount: { currency_code: PAYPAL_CURRENCY, value },
           description: `${votesCount} vote(s) pour ${candidateName}`,
         },
       ],
@@ -153,19 +149,16 @@ async function initPayPal({ txRef, amount, userEmail, userName, candidateName, v
 }
 
 async function verifyPayPal(orderId) {
-  if (!orderId) {
-    throw new AppError("Identifiant PayPal manquant", 400);
-  }
+  if (!orderId) throw new AppError("Identifiant PayPal manquant", 400);
 
   const token = await getPayPalToken();
-  const response = await axios.get(`${PAYPAL_BASE_URL}/v2/checkout/orders/${orderId}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+  const response = await axios.get(
+    `${PAYPAL_BASE_URL}/v2/checkout/orders/${orderId}`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
 
   const orderStatus = response.data?.status;
-  if (orderStatus === "COMPLETED") {
-    return { success: true };
-  }
+  if (orderStatus === "COMPLETED") return { success: true };
 
   if (orderStatus === "APPROVED") {
     try {
@@ -179,11 +172,7 @@ async function verifyPayPal(orderId) {
           },
         },
       );
-
-      const captureStatus = capture.data?.status;
-      if (captureStatus === "COMPLETED") {
-        return { success: true };
-      }
+      if (capture.data?.status === "COMPLETED") return { success: true };
     } catch (captureError) {
       if (captureError.response?.data?.name === "ORDER_ALREADY_CAPTURED") {
         return { success: true };
@@ -195,19 +184,24 @@ async function verifyPayPal(orderId) {
   return { success: false, status: orderStatus };
 }
 
+// ─── GENIUSPAY ────────────────────────────────────────────────────────────────
+
 async function initGeniusPay({ txRef, amount, userEmail, userName, candidateName, voterPhone, country }) {
   if (!process.env.GENIUSPAY_API_KEY || !process.env.GENIUSPAY_API_SECRET) {
     throw new AppError("Clés GeniusPay non configurées", 500);
   }
 
+  if (amount < 200) {
+    throw new AppError("Montant minimum pour GeniusPay : 200 FCFA (2 votes)", 400);
+  }
+
   const payload = {
     amount,
-    currency: "XOF",
     description: `${candidateName} - ${amount.toLocaleString("fr-FR")} FCFA`,
     customer: {
       name: userName,
       email: userEmail,
-      phone: voterPhone,
+      ...(voterPhone && { phone: voterPhone }),
       country: country || "CI",
     },
     success_url: `${process.env.FRONTEND_URL}/vote/callback?tx_ref=${txRef}&provider=geniuspay&status=completed`,
@@ -220,27 +214,44 @@ async function initGeniusPay({ txRef, amount, userEmail, userName, candidateName
     },
   };
 
-  const response = await axios.post(`${GENIUSPAY_BASE_URL}/payments`, payload, {
-    headers: {
-      "X-API-Key": process.env.GENIUSPAY_API_KEY,
-      "X-API-Secret": process.env.GENIUSPAY_API_SECRET,
-      "Content-Type": "application/json",
-    },
-  });
+  let response;
+  try {
+    response = await axios.post(`${GENIUSPAY_BASE_URL}/payments`, payload, {
+      headers: {
+        "X-API-Key": process.env.GENIUSPAY_API_KEY,
+        "X-API-Secret": process.env.GENIUSPAY_API_SECRET,
+        "Content-Type": "application/json",
+      },
+    });
+  } catch (err) {
+    logger.error("GeniusPay init error:", err.response?.data || err.message);
+    throw new AppError(
+      `Erreur GeniusPay: ${err.response?.data?.error?.message || err.message}`,
+      502
+    );
+  }
 
   if (!response.data?.success || !response.data?.data) {
-    throw new AppError(`Erreur GeniusPay: ${response.data?.error?.message || "Réponse invalide"}`);
+    logger.error("GeniusPay bad response:", response.data);
+    throw new AppError(
+      `Erreur GeniusPay: ${response.data?.error?.message || "Réponse invalide"}`,
+      502
+    );
   }
 
   const data = response.data.data;
   const paymentLink = data.checkout_url || data.payment_url;
+
   if (!paymentLink) {
-    throw new AppError("Impossible de récupérer le lien de paiement GeniusPay");
+    logger.error("GeniusPay no payment link:", data);
+    throw new AppError("Impossible de récupérer le lien de paiement GeniusPay", 502);
   }
+
+  logger.info(`GeniusPay payment created: ref=${data.reference || data.id}`);
 
   return {
     paymentLink,
-    geniuspayReference: data.reference || data.id,
+    geniuspayReference: data.reference || String(data.id),
   };
 }
 
@@ -249,26 +260,120 @@ async function verifyGeniusPay(externalReference) {
     throw new AppError("Clés GeniusPay non configurées", 500);
   }
 
-  const response = await axios.get(`${GENIUSPAY_BASE_URL}/payments/${externalReference}`, {
-    headers: {
-      "X-API-Key": process.env.GENIUSPAY_API_KEY,
-      "X-API-Secret": process.env.GENIUSPAY_API_SECRET,
-      "Content-Type": "application/json",
+  try {
+    const response = await axios.get(
+      `${GENIUSPAY_BASE_URL}/payments/${externalReference}`,
+      {
+        headers: {
+          "X-API-Key": process.env.GENIUSPAY_API_KEY,
+          "X-API-Secret": process.env.GENIUSPAY_API_SECRET,
+          "Content-Type": "application/json",
+        },
+      },
+    );
+    return response.data?.data || null;
+  } catch (err) {
+    logger.error("GeniusPay verify error:", err.response?.data || err.message);
+    return null;
+  }
+}
+
+// ─── GENIUSPAY SIGNATURE ──────────────────────────────────────────────────────
+
+function verifyGeniusPaySignature({ signature, timestamp, body }) {
+  const secret = process.env.GENIUSPAY_WEBHOOK_SECRET;
+  if (!secret) {
+    logger.error("GENIUSPAY_WEBHOOK_SECRET non configuré");
+    return false;
+  }
+
+  try {
+    // Le body est un Buffer (express.raw) — on le convertit en string
+    const rawBody = Buffer.isBuffer(body) ? body.toString("utf8") : JSON.stringify(body);
+
+    // Format GeniusPay : HMAC-SHA256(timestamp + "." + json_payload, secret)
+    const data = `${timestamp}.${rawBody}`;
+    const expected = crypto
+      .createHmac("sha256", secret)
+      .update(data)
+      .digest("hex");
+
+    // Comparaison à temps constant pour éviter les timing attacks
+    return crypto.timingSafeEqual(
+      Buffer.from(expected, "hex"),
+      Buffer.from(signature, "hex")
+    );
+  } catch (err) {
+    logger.error("GeniusPay signature verification error:", err.message);
+    return false;
+  }
+}
+
+// ─── GENIUSPAY WEBHOOK ────────────────────────────────────────────────────────
+
+async function processGeniusPayWebhook(body) {
+  const { event, data: eventData } = body;
+
+  if (!event || !eventData) {
+    logger.warn("GeniusPay webhook: body invalide", body);
+    return;
+  }
+
+  logger.info(`GeniusPay webhook event: ${event}`);
+
+  // On traite uniquement payment.success
+  if (event !== "payment.success") return;
+
+  const txRef = eventData?.metadata?.txRef;
+  if (!txRef) {
+    logger.warn("GeniusPay webhook: txRef manquant dans metadata", eventData);
+    return;
+  }
+
+  const payment = await prisma.payment.findUnique({
+    where: { flutterwaveTxRef: txRef },
+  });
+
+  if (!payment) {
+    logger.warn(`GeniusPay webhook: paiement introuvable pour txRef=${txRef}`);
+    return;
+  }
+
+  if (payment.webhookReceived || payment.status !== "PENDING") {
+    logger.info(`GeniusPay webhook: paiement déjà traité txRef=${txRef}`);
+    return;
+  }
+
+  await prisma.payment.update({
+    where: { id: payment.id },
+    data: {
+      webhookReceived: true,
+      flutterwaveFlwRef: eventData.reference || String(eventData.id),
     },
   });
 
-  return response.data?.data || null;
+  if (eventData.status === "completed") {
+    await creditVotes(payment);
+    logger.info(`GeniusPay webhook: votes crédités txRef=${txRef} votes=${payment.votesCount}`);
+  } else {
+    await prisma.payment.update({
+      where: { id: payment.id },
+      data: { status: "FAILED" },
+    });
+    logger.warn(`GeniusPay webhook: paiement échoué txRef=${txRef} status=${eventData.status}`);
+  }
 }
 
+// ─── INITIALIZE PAYMENT ───────────────────────────────────────────────────────
 
 async function initializePayment({ candidateId, amount, provider, country, voterName, voterEmail, voterPhone }) {
   const contest = await prisma.contest.findFirst({ where: { status: "OPEN" } });
-  if (!contest) throw new AppError("Les votes sont actuellement fermes", 403);
+  if (!contest) throw new AppError("Les votes sont actuellement fermés", 403);
 
   const candidate = await prisma.candidate.findFirst({
     where: { id: candidateId, status: "APPROVED" },
   });
-  if (!candidate) throw new AppError("Candidat introuvable ou non approuve", 404);
+  if (!candidate) throw new AppError("Candidat introuvable ou non approuvé", 404);
 
   const votesCount = amountToVotes(amount);
   if (votesCount < 1) throw new AppError("Montant minimum : 100 FCFA", 400);
@@ -307,6 +412,7 @@ async function initializePayment({ candidateId, amount, provider, country, voter
     candidateName: candidate.name,
     votesCount,
     country,
+    voterPhone: voter.phone,
   };
 
   let paymentLink = "";
@@ -331,7 +437,7 @@ async function initializePayment({ candidateId, amount, provider, country, voter
         });
       }
     } else if (provider === "geniuspay") {
-      const result = await initGeniusPay({ ...params, voterPhone, country });
+      const result = await initGeniusPay(params);
       paymentLink = result.paymentLink;
       if (result.geniuspayReference) {
         await prisma.payment.update({
@@ -341,6 +447,11 @@ async function initializePayment({ candidateId, amount, provider, country, voter
       }
     }
   } catch (err) {
+    // Marquer comme échoué si l'init plante
+    await prisma.payment.update({
+      where: { id: payment.id },
+      data: { status: "FAILED" },
+    });
     if (err instanceof AppError) throw err;
     logger.error(`[${provider}] init error:`, err.response?.data || err.message);
     throw new AppError(`Erreur lors de l'initialisation du paiement (${provider})`, 502);
@@ -359,18 +470,24 @@ async function initializePayment({ candidateId, amount, provider, country, voter
   };
 }
 
+// ─── VERIFY PAYMENT ───────────────────────────────────────────────────────────
+
 async function verifyPayment(txRef) {
-  const payment = await prisma.payment.findUnique({ where: { flutterwaveTxRef: txRef } });
+  const payment = await prisma.payment.findUnique({
+    where: { flutterwaveTxRef: txRef },
+  });
   if (!payment) throw new AppError("Transaction introuvable", 404);
+
   if (payment.status === "COMPLETED") {
     return {
       status: "COMPLETED",
       votesCount: payment.votesCount,
-      message: "Votes deja credites",
+      message: "Votes déjà crédités",
     };
   }
+
   if (payment.status === "FAILED") {
-    return { status: "FAILED", message: "Paiement echoue" };
+    return { status: "FAILED", message: "Paiement échoué" };
   }
 
   const provider = payment.metadata?.provider || "fapshi";
@@ -390,7 +507,7 @@ async function verifyPayment(txRef) {
       success = result.success === true;
     } else if (provider === "geniuspay") {
       const externalReference = payment.flutterwaveFlwRef;
-      if (!externalReference) return { status: "PENDING", message: "En attente de confirmation GeniusPay" };
+      if (!externalReference) return { status: "PENDING", message: "En attente GeniusPay" };
       const result = await verifyGeniusPay(externalReference);
       success = result?.status === "completed";
     }
@@ -400,30 +517,33 @@ async function verifyPayment(txRef) {
         return {
           status: payment.status,
           votesCount: payment.votesCount,
-          message: "Deja traite",
+          message: "Déjà traité",
         };
       }
-
       await creditVotes(payment);
       return {
         status: "COMPLETED",
         votesCount: payment.votesCount,
-        message: "Votes credites avec succes !",
+        message: "Votes crédités avec succès !",
       };
     }
 
     return { status: "PENDING", message: "Paiement en attente de confirmation" };
   } catch (err) {
     logger.error("Verify error:", err.message);
-    return { status: "PENDING", message: "Verification impossible pour l'instant" };
+    return { status: "PENDING", message: "Vérification impossible pour l'instant" };
   }
 }
+
+// ─── FAPSHI WEBHOOK ───────────────────────────────────────────────────────────
 
 async function processFapshiWebhook(body) {
   const { externalId: txRef, status, transId } = body;
   if (!txRef) return;
 
-  const payment = await prisma.payment.findUnique({ where: { flutterwaveTxRef: txRef } });
+  const payment = await prisma.payment.findUnique({
+    where: { flutterwaveTxRef: txRef },
+  });
   if (!payment || payment.webhookReceived || payment.status !== "PENDING") return;
 
   await prisma.payment.update({
@@ -433,11 +553,16 @@ async function processFapshiWebhook(body) {
 
   if (status === "SUCCESSFUL") {
     await creditVotes(payment);
-    logger.info(`Fapshi webhook: votes credited txRef=${txRef}`);
+    logger.info(`Fapshi webhook: votes crédités txRef=${txRef}`);
   } else {
-    await prisma.payment.update({ where: { id: payment.id }, data: { status: "FAILED" } });
+    await prisma.payment.update({
+      where: { id: payment.id },
+      data: { status: "FAILED" },
+    });
   }
 }
+
+// ─── CREDIT VOTES ─────────────────────────────────────────────────────────────
 
 async function creditVotes(payment) {
   const credited = await prisma.$transaction(async (tx) => {
@@ -446,9 +571,7 @@ async function creditVotes(payment) {
       data: { status: "COMPLETED" },
     });
 
-    if (result.count === 0) {
-      return false;
-    }
+    if (result.count === 0) return false;
 
     await tx.vote.create({
       data: {
@@ -458,9 +581,10 @@ async function creditVotes(payment) {
         paymentId: payment.id,
       },
     });
+
     await tx.candidate.update({
       where: { id: payment.candidateId },
-        data: { totalVotes: { increment: payment.votesCount } },
+      data: { totalVotes: { increment: payment.votesCount } },
     });
 
     return true;
@@ -472,6 +596,8 @@ async function creditVotes(payment) {
 
   return credited;
 }
+
+// ─── USER PAYMENTS ────────────────────────────────────────────────────────────
 
 async function getUserPayments(userId, page, limit) {
   const skip = (page - 1) * limit;
@@ -492,6 +618,8 @@ module.exports = {
   initializePayment,
   verifyPayment,
   processFapshiWebhook,
+  processGeniusPayWebhook,
+  verifyGeniusPaySignature,
   getUserPayments,
   creditVotes,
 };
