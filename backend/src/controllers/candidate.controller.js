@@ -1,7 +1,11 @@
 const candidateService = require("../services/candidate.service");
+const { PrismaClient } = require("@prisma/client");
 const { validationResult } = require("express-validator");
 
+const prisma = new PrismaClient();
+
 class CandidateController {
+
   async register(req, res, next) {
     try {
       const errors = validationResult(req);
@@ -22,7 +26,11 @@ class CandidateController {
         userId: req.user?.id,
       };
       const candidate = await candidateService.createCandidate(data);
-      res.status(201).json({ success: true, message: "Candidature soumise, en attente de validation", data: candidate });
+      res.status(201).json({
+        success: true,
+        message: "Candidature soumise, en attente de validation",
+        data: candidate,
+      });
     } catch (err) {
       next(err);
     }
@@ -53,6 +61,46 @@ class CandidateController {
       const { type, limit = 10 } = req.query;
       const candidates = await candidateService.getTop({ type, limit: +limit });
       res.json({ success: true, data: candidates });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  // POST /api/candidates/:id/like — incrémenter totalLikes
+  async like(req, res, next) {
+    try {
+      const { id } = req.params;
+      const candidate = await prisma.candidate.findUnique({ where: { id } });
+      if (!candidate) {
+        return res.status(404).json({ success: false, message: "Candidat introuvable" });
+      }
+      const updated = await prisma.candidate.update({
+        where: { id },
+        data: { totalLikes: { increment: 1 } },
+        select: { id: true, totalLikes: true },
+      });
+      res.json({ success: true, data: { totalLikes: updated.totalLikes } });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  // DELETE /api/candidates/:id/like — décrémenter totalLikes (min 0)
+  async unlike(req, res, next) {
+    try {
+      const { id } = req.params;
+      const candidate = await prisma.candidate.findUnique({ where: { id } });
+      if (!candidate) {
+        return res.status(404).json({ success: false, message: "Candidat introuvable" });
+      }
+      const updated = await prisma.candidate.update({
+        where: { id },
+        data: {
+          totalLikes: { decrement: candidate.totalLikes > 0 ? 1 : 0 },
+        },
+        select: { id: true, totalLikes: true },
+      });
+      res.json({ success: true, data: { totalLikes: updated.totalLikes } });
     } catch (err) {
       next(err);
     }
