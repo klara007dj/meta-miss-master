@@ -15,7 +15,7 @@ export const metadata: Metadata = {
     siteName: "MetaMiss Master 2025",
     images: [
       {
-        url: "https://metavote.online/og-image.png",
+        url: "https://metavote.online/og-image.jpg",
         width: 1200,
         height: 630,
         alt: "MetaMiss Master 2025 — Élégance · Confiance · Excellence",
@@ -29,7 +29,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "MetaMiss Master 2025",
     description: "🗳️ Votez pour vos candidats préférés · Résultats en direct",
-    images: ["https://metavote.online/og-image.png"],
+    images: ["https://metavote.online/og-image.jpg"],
   },
 
   icons: {
