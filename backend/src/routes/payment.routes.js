@@ -7,8 +7,6 @@ const { paymentRateLimiter } = require("../middlewares/rateLimiter");
 const router = express.Router();
 
 router.post("/webhook/fapshi", express.raw({ type: "*/*" }), paymentController.webhookFapshi);
-router.post("/webhook/cinetpay", express.raw({ type: "*/*" }), paymentController.webhookCinetPay);
-router.post("/webhook/stripe", express.raw({ type: "application/json" }), paymentController.webhookStripe);
 
 router.post(
   "/initialize",
@@ -16,7 +14,8 @@ router.post(
   [
     body("candidateId").notEmpty().withMessage("Candidat requis"),
     body("amount").isInt({ min: 100 }).withMessage("Montant minimum 100 FCFA"),
-    body("provider").isIn(["fapshi", "cinetpay", "stripe", "geniuspay"]).withMessage("Provider invalide"),
+    body("provider").isIn(["fapshi", "paypal", "geniuspay"]).withMessage("Provider invalide"),
+    body("country").optional().trim().isLength({ min: 2, max: 60 }).withMessage("Pays invalide"),
     body("voterName").trim().isLength({ min: 2, max: 100 }).withMessage("Nom requis"),
     body("voterEmail").isEmail().normalizeEmail().withMessage("Email requis"),
     body("voterPhone")

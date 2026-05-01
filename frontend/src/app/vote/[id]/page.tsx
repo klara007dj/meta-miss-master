@@ -9,9 +9,17 @@ import { useT } from "@/store/langStore";
 const PRESETS = [100, 500, 1000, 5000];
 const PROVIDERS = [
   { id: "fapshi", label: "Fapshi", sub: "MTN · Orange Money" },
-  { id: "cinetpay", label: "CinetPay", sub: "Mobile Money" },
+  { id: "paypal", label: "PayPal", sub: "International / multi-device" },
   { id: "geniuspay", label: "GeniusPay", sub: "Choix de paiement selon le pays" },
-  { id: "stripe", label: "Stripe", sub: "Carte bancaire" },
+];
+
+const COUNTRIES = [
+  { code: "CI", label: "Côte d'Ivoire" },
+  { code: "ML", label: "Mali" },
+  { code: "SN", label: "Sénégal" },
+  { code: "FR", label: "France" },
+  { code: "GB", label: "Europe" },
+  { code: "OTHER", label: "Autre pays" },
 ];
 
 type Step = "form" | "confirm" | "success";
@@ -23,6 +31,7 @@ export default function VoteByIdPage() {
   const [candidate, setCandidate] = useState<any>(null);
   const [amount, setAmount] = useState(500);
   const [provider, setProvider] = useState("fapshi");
+  const [country, setCountry] = useState("CI");
   const [voterName, setVoterName] = useState("");
   const [voterEmail, setVoterEmail] = useState("");
   const [voterPhone, setVoterPhone] = useState("");
@@ -41,7 +50,7 @@ export default function VoteByIdPage() {
     setLoading(true);
     try {
       const { data } = await api.post("/payments/initialize", {
-        candidateId: id, amount, provider, voterName, voterEmail, voterPhone,
+        candidateId: id, amount, provider, country, voterName, voterEmail, voterPhone,
       });
       if (data.data?.paymentLink) {
         window.location.href = data.data.paymentLink;
@@ -176,6 +185,22 @@ export default function VoteByIdPage() {
             </button>
           ))}
         </div>
+        <input
+          type="number"
+          min={100}
+          step={100}
+          value={amount}
+          onChange={(e) => {
+            const value = Number(e.target.value);
+            if (Number.isNaN(value)) return;
+            setAmount(Math.max(100, Math.floor(value)));
+          }}
+          placeholder="Montant libre (min 100 FCFA)"
+          style={{
+            ...inputStyle,
+            marginBottom: 20,
+          }}
+        />
 
         {/* Summary */}
         <div style={{ background: "var(--blue-light)", borderRadius: 10, padding: "12px 14px", marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -185,7 +210,7 @@ export default function VoteByIdPage() {
 
         {/* Provider */}
         <div style={{ fontSize: "0.75rem", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>{t.payment}</div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
           {PROVIDERS.map(p => (
             <button key={p.id} onClick={() => setProvider(p.id)} style={{
               display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -194,9 +219,14 @@ export default function VoteByIdPage() {
               background: provider===p.id ? "var(--blue-light)" : "var(--bg-white)",
               cursor: "pointer", fontFamily: "var(--font)", transition: "all 0.15s",
             }}>
-              <div style={{ textAlign: "left" }}>
-                <div style={{ fontSize: "0.85rem", fontWeight: 700, color: provider===p.id ? "var(--blue)" : "var(--text)" }}>{p.label}</div>
-                <div style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>{p.sub}</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, textAlign: "left" }}>
+                <div style={{ width: 36, height: 36, borderRadius: 12, display: "grid", placeItems: "center", fontWeight: 700, color: "#fff", background: p.id === "fapshi" ? "#E84C4C" : p.id === "paypal" ? "#003087" : "#1F2937" }}>
+                  {p.id === "fapshi" ? "F" : p.id === "paypal" ? "P" : "G"}
+                </div>
+                <div>
+                  <div style={{ fontSize: "0.85rem", fontWeight: 700, color: provider===p.id ? "var(--blue)" : "var(--text)" }}>{p.label}</div>
+                  <div style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>{p.sub}</div>
+                </div>
               </div>
               {provider===p.id && (
                 <div style={{ width: 20, height: 20, borderRadius: "50%", background: "var(--blue)", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -206,6 +236,62 @@ export default function VoteByIdPage() {
             </button>
           ))}
         </div>
+
+        {provider === "fapshi" && (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 18 }}>
+            <div style={{ border: "1px solid #FEE2E2", background: "#FFF3F2", borderRadius: 10, padding: 12 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+                <span style={{ width: 28, height: 28, borderRadius: 8, background: "#FF7900", color: "#fff", display: "grid", placeItems: "center", fontWeight: 700 }}>
+                  O
+                </span>
+                <span style={{ fontSize: "0.82rem", fontWeight: 700 }}>Orange Money</span>
+              </div>
+              <div style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>Paiement mobile via Fapshi</div>
+            </div>
+            <div style={{ border: "1px solid #FEF3C7", background: "#FFFBEB", borderRadius: 10, padding: 12 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+                <span style={{ width: 28, height: 28, borderRadius: 8, background: "#FFD600", color: "#1F2937", display: "grid", placeItems: "center", fontWeight: 700 }}>
+                  M
+                </span>
+                <span style={{ fontSize: "0.82rem", fontWeight: 700 }}>MTN Money</span>
+              </div>
+              <div style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>Paiement mobile via Fapshi</div>
+            </div>
+          </div>
+        )}
+
+        {provider === "paypal" && (
+          <div style={{ background: "#F0F7FF", borderRadius: 10, padding: 14, marginBottom: 18 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+              <span style={{ width: 28, height: 28, borderRadius: 8, background: "#003087", color: "#fff", display: "grid", placeItems: "center", fontWeight: 700 }}>P</span>
+              <div style={{ fontSize: "0.82rem", fontWeight: 700 }}>PayPal</div>
+            </div>
+            <div style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>Paiement international depuis l'Europe et les appareils mobiles.</div>
+          </div>
+        )}
+
+        {provider === "geniuspay" && (
+          <div style={{ marginBottom: 18 }}>
+            <div style={{ fontSize: "0.75rem", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Pays</div>
+            <select
+              value={country}
+              onChange={(e) => setCountry(e.target.value)}
+              style={{
+                ...inputStyle,
+                appearance: "none",
+                MozAppearance: "none",
+                WebkitAppearance: "none",
+              }}
+            >
+              {COUNTRIES.map((countryOption) => (
+                <option key={countryOption.code} value={countryOption.code}>{countryOption.label}</option>
+              ))}
+            </select>
+            <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", marginTop: 10 }}>
+              GeniusPay sélectionnera le meilleur mode de paiement disponible pour votre pays.
+            </div>
+          </div>
+        )}
 
         <button
           className="btn-blue"

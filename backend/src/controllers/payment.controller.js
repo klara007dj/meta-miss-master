@@ -10,7 +10,7 @@ class PaymentController {
         return res.status(422).json({ success: false, errors: errors.array() });
       }
 
-      const { candidateId, amount, provider, voterName, voterEmail, voterPhone } = req.body;
+      const { candidateId, amount, provider, country, voterName, voterEmail, voterPhone } = req.body;
 
       if (amount < 100) {
         return res.status(400).json({
@@ -23,6 +23,7 @@ class PaymentController {
         candidateId,
         amount: Math.floor(amount),
         provider: provider || "fapshi",
+        country,
         voterName,
         voterEmail,
         voterPhone,
@@ -54,28 +55,6 @@ class PaymentController {
     }
   }
 
-  async webhookCinetPay(req, res) {
-    try {
-      const body = Buffer.isBuffer(req.body) ? JSON.parse(req.body) : req.body;
-      await paymentService.processCinetPayWebhook(body);
-      res.status(200).json({ message: "OK" });
-    } catch (err) {
-      logger.error("CinetPay wh:", err);
-      res.status(200).json({ message: "Received" });
-    }
-  }
-
-  async webhookStripe(req, res) {
-    try {
-      const sig = req.headers["stripe-signature"];
-      if (!sig) return res.status(400).json({ message: "Missing signature" });
-      await paymentService.processStripeWebhook(req.body, sig);
-      res.status(200).json({ message: "OK" });
-    } catch (err) {
-      logger.error("Stripe wh:", err.message);
-      res.status(400).json({ message: err.message });
-    }
-  }
 
   async history(req, res, next) {
     try {

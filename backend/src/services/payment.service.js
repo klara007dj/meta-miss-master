@@ -9,6 +9,9 @@ const { emitRankingUpdate } = require("../socket/socket");
 const prisma = new PrismaClient();
 const VOTE_PRICE = 100;
 const GENIUSPAY_BASE_URL = "https://pay.genius.ci/api/v1/merchant";
+const PAYPAL_BASE_URL = process.env.PAYPAL_BASE_URL || "https://api-m.sandbox.paypal.com";
+const PAYPAL_CURRENCY = process.env.PAYPAL_CURRENCY || "USD";
+const PAYPAL_XAF_RATE = parseFloat(process.env.PAYPAL_XAF_RATE) || 650;
 
 function amountToVotes(amount) {
   return Math.floor(amount / VOTE_PRICE);
@@ -81,48 +84,118 @@ async function verifyFapshi(transId) {
   return response.data;
 }
 
-async function initCinetPay({ txRef, amount, userEmail, userName, candidateName, votesCount }) {
-  const response = await axios.post(
-    "https://api-checkout.cinetpay.com/v2/payment",
-    {
-      apikey: process.env.CINETPAY_API_KEY,
-      site_id: process.env.CINETPAY_SITE_ID,
-      transaction_id: txRef,
-      amount,
-      currency: "XAF",
-      description: `${votesCount} vote(s) pour ${candidateName}`,
-      customer_email: userEmail,
-      customer_name: userName,
-      notify_url: `${process.env.BACKEND_URL}/api/payments/webhook/cinetpay`,
-      return_url: `${process.env.FRONTEND_URL}/vote/callback?tx_ref=${txRef}&provider=cinetpay`,
-      channels: "ALL",
-      lang: "fr",
-    },
-    { headers: { "Content-Type": "application/json" } },
-  );
-
-  if (response.data.code !== "201") {
-    throw new AppError(`Erreur CinetPay: ${response.data.message || "Inconnue"}`, 502);
+async function getPayPalToken() {
+  if (!process.env.PAYPAL_CLIENT_ID || !process.env.PAYPAL_SECRET) {
+    throw new AppError("PayPal non configuré", 500);
   }
 
-  return { paymentLink: response.data.data.payment_url };
-}
-
-async function verifyCinetPay(txRef) {
   const response = await axios.post(
-    "https://api-checkout.cinetpay.com/v2/payment/check",
+    `${PAYPAL_BASE_URL}/v1/oauth2/token`,
+    "grant_type=client_credentials",
     {
-      apikey: process.env.CINETPAY_API_KEY,
-      site_id: process.env.CINETPAY_SITE_ID,
-      transaction_id: txRef,
+      auth: {
+        username: process.env.PAYPAL_CLIENT_ID,
+        password: process.env.PAYPAL_SECRET,
+      },
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
     },
-    { headers: { "Content-Type": "application/json" } },
   );
 
-  return response.data;
+  if (!response.data?.access_token) {
+    throw new AppError("Impossible de générer le jeton PayPal", 500);
+  }
+
+  return response.data.access_token;
 }
 
-async function initGeniusPay({ txRef, amount, userEmail, userName, candidateName, voterPhone }) {
+async function initPayPal({ txRef, amount, userEmail, userName, candidateName, votesCount }) {
+  const token = await getPayPalToken();
+  const value = (Math.max(100, amount) / PAYPAL_XAF_RATE).toFixed(2);
+
+  const response = await axios.post(
+    `${PAYPAL_BASE_URL}/v2/checkout/orders`,
+    {
+      intent: "CAPTURE",
+      purchase_units: [
+        {
+          amount: {
+            currency_code: PAYPAL_CURRENCY,
+            value,
+          },
+          description: `${votesCount} vote(s) pour ${candidateName}`,
+        },
+      ],
+      application_context: {
+        return_url: `${process.env.FRONTEND_URL}/vote/callback?tx_ref=${txRef}&provider=paypal`,
+        cancel_url: `${process.env.FRONTEND_URL}/vote/callback?tx_ref=${txRef}&status=cancelled`,
+      },
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    },
+  );
+
+  if (!response.data?.links) {
+    throw new AppError("Impossible de démarrer le paiement PayPal", 502);
+  }
+
+  const approveLink = response.data.links.find((link) => link.rel === "approve")?.href;
+  if (!approveLink) {
+    throw new AppError("Impossible de récupérer le lien PayPal", 502);
+  }
+
+  return { paymentLink: approveLink, orderId: response.data.id };
+}
+
+async function verifyPayPal(orderId) {
+  if (!orderId) {
+    throw new AppError("Identifiant PayPal manquant", 400);
+  }
+
+  const token = await getPayPalToken();
+  const response = await axios.get(`${PAYPAL_BASE_URL}/v2/checkout/orders/${orderId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  const orderStatus = response.data?.status;
+  if (orderStatus === "COMPLETED") {
+    return { success: true };
+  }
+
+  if (orderStatus === "APPROVED") {
+    try {
+      const capture = await axios.post(
+        `${PAYPAL_BASE_URL}/v2/checkout/orders/${orderId}/capture`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        },
+      );
+
+      const captureStatus = capture.data?.status;
+      if (captureStatus === "COMPLETED") {
+        return { success: true };
+      }
+    } catch (captureError) {
+      if (captureError.response?.data?.name === "ORDER_ALREADY_CAPTURED") {
+        return { success: true };
+      }
+      throw captureError;
+    }
+  }
+
+  return { success: false, status: orderStatus };
+}
+
+async function initGeniusPay({ txRef, amount, userEmail, userName, candidateName, voterPhone, country }) {
   if (!process.env.GENIUSPAY_API_KEY || !process.env.GENIUSPAY_API_SECRET) {
     throw new AppError("Clés GeniusPay non configurées", 500);
   }
@@ -135,6 +208,7 @@ async function initGeniusPay({ txRef, amount, userEmail, userName, candidateName
       name: userName,
       email: userEmail,
       phone: voterPhone,
+      country: country || "CI",
     },
     success_url: `${process.env.FRONTEND_URL}/vote/callback?tx_ref=${txRef}&provider=geniuspay&status=completed`,
     error_url: `${process.env.FRONTEND_URL}/vote/callback?tx_ref=${txRef}&provider=geniuspay&status=failed`,
@@ -142,6 +216,7 @@ async function initGeniusPay({ txRef, amount, userEmail, userName, candidateName
       candidateName,
       userEmail,
       txRef,
+      country: country || "CI",
     },
   };
 
@@ -185,47 +260,8 @@ async function verifyGeniusPay(externalReference) {
   return response.data?.data || null;
 }
 
-let stripe;
-function getStripe() {
-  if (!stripe) {
-    const Stripe = require("stripe");
-    stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-  }
 
-  return stripe;
-}
-
-async function initStripe({ txRef, amount, userEmail, candidateName, votesCount }) {
-  const stripeClient = getStripe();
-  const amountEurCents = Math.round((amount / 655.96) * 100);
-
-  const session = await stripeClient.checkout.sessions.create({
-    payment_method_types: ["card"],
-    line_items: [
-      {
-        price_data: {
-          currency: "eur",
-          product_data: {
-            name: `${votesCount} vote(s) - META MISS & MASTER`,
-            description: `Pour : ${candidateName}`,
-          },
-          unit_amount: amountEurCents,
-        },
-        quantity: 1,
-      },
-    ],
-    mode: "payment",
-    customer_email: userEmail,
-    client_reference_id: txRef,
-    success_url: `${process.env.FRONTEND_URL}/vote/callback?tx_ref=${txRef}&provider=stripe&session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${process.env.FRONTEND_URL}/vote/callback?tx_ref=${txRef}&status=cancelled`,
-    metadata: { txRef, votesCount: String(votesCount) },
-  });
-
-  return { paymentLink: session.url, sessionId: session.id };
-}
-
-async function initializePayment({ candidateId, amount, provider, voterName, voterEmail, voterPhone }) {
+async function initializePayment({ candidateId, amount, provider, country, voterName, voterEmail, voterPhone }) {
   const contest = await prisma.contest.findFirst({ where: { status: "OPEN" } });
   if (!contest) throw new AppError("Les votes sont actuellement fermes", 403);
 
@@ -237,7 +273,7 @@ async function initializePayment({ candidateId, amount, provider, voterName, vot
   const votesCount = amountToVotes(amount);
   if (votesCount < 1) throw new AppError("Montant minimum : 100 FCFA", 400);
 
-  const validProviders = ["fapshi", "cinetpay", "stripe", "geniuspay"];
+  const validProviders = ["fapshi", "paypal", "geniuspay"];
   if (!validProviders.includes(provider)) throw new AppError("Provider invalide", 400);
 
   const voter = await findOrCreateVoter({ voterName, voterEmail, voterPhone });
@@ -253,6 +289,7 @@ async function initializePayment({ candidateId, amount, provider, voterName, vot
       status: "PENDING",
       metadata: {
         provider,
+        country: country || "CI",
         candidateName: candidate.name,
         candidateType: candidate.type,
         voterName: voter.name,
@@ -269,6 +306,7 @@ async function initializePayment({ candidateId, amount, provider, voterName, vot
     userName: voter.name || voter.email,
     candidateName: candidate.name,
     votesCount,
+    country,
   };
 
   let paymentLink = "";
@@ -283,25 +321,22 @@ async function initializePayment({ candidateId, amount, provider, voterName, vot
           data: { flutterwaveFlwRef: result.transId },
         });
       }
-    } else if (provider === "cinetpay") {
-      const result = await initCinetPay(params);
+    } else if (provider === "paypal") {
+      const result = await initPayPal(params);
       paymentLink = result.paymentLink;
+      if (result.orderId) {
+        await prisma.payment.update({
+          where: { id: payment.id },
+          data: { flutterwaveFlwRef: result.orderId },
+        });
+      }
     } else if (provider === "geniuspay") {
-      const result = await initGeniusPay({ ...params, voterPhone });
+      const result = await initGeniusPay({ ...params, voterPhone, country });
       paymentLink = result.paymentLink;
       if (result.geniuspayReference) {
         await prisma.payment.update({
           where: { id: payment.id },
           data: { flutterwaveFlwRef: result.geniuspayReference },
-        });
-      }
-    } else {
-      const result = await initStripe(params);
-      paymentLink = result.paymentLink;
-      if (result.sessionId) {
-        await prisma.payment.update({
-          where: { id: payment.id },
-          data: { flutterwaveTransId: result.sessionId },
         });
       }
     }
@@ -348,20 +383,16 @@ async function verifyPayment(txRef) {
       if (!transId) return { status: "PENDING", message: "En attente de confirmation" };
       const result = await verifyFapshi(transId);
       success = result.status === "SUCCESSFUL";
-    } else if (provider === "cinetpay") {
-      const result = await verifyCinetPay(txRef);
-      success = result.code === "00" && result.data?.status === "ACCEPTED";
+    } else if (provider === "paypal") {
+      const orderId = payment.flutterwaveFlwRef;
+      if (!orderId) return { status: "PENDING", message: "En attente PayPal" };
+      const result = await verifyPayPal(orderId);
+      success = result.success === true;
     } else if (provider === "geniuspay") {
       const externalReference = payment.flutterwaveFlwRef;
       if (!externalReference) return { status: "PENDING", message: "En attente de confirmation GeniusPay" };
       const result = await verifyGeniusPay(externalReference);
       success = result?.status === "completed";
-    } else {
-      const stripeClient = getStripe();
-      const sessionId = payment.flutterwaveTransId;
-      if (!sessionId) return { status: "PENDING", message: "En attente Stripe" };
-      const session = await stripeClient.checkout.sessions.retrieve(sessionId);
-      success = session.payment_status === "paid";
     }
 
     if (success) {
@@ -405,54 +436,6 @@ async function processFapshiWebhook(body) {
     logger.info(`Fapshi webhook: votes credited txRef=${txRef}`);
   } else {
     await prisma.payment.update({ where: { id: payment.id }, data: { status: "FAILED" } });
-  }
-}
-
-async function processCinetPayWebhook(body) {
-  const { cpm_trans_id: txRef, cpm_result } = body;
-  if (!txRef) return;
-
-  const payment = await prisma.payment.findUnique({ where: { flutterwaveTxRef: txRef } });
-  if (!payment || payment.webhookReceived || payment.status !== "PENDING") return;
-
-  await prisma.payment.update({ where: { id: payment.id }, data: { webhookReceived: true } });
-
-  if (cpm_result === "00") {
-    await creditVotes(payment);
-    logger.info(`CinetPay webhook: votes credited txRef=${txRef}`);
-  } else {
-    await prisma.payment.update({ where: { id: payment.id }, data: { status: "FAILED" } });
-  }
-}
-
-async function processStripeWebhook(rawBody, signature) {
-  const stripeClient = getStripe();
-  let event;
-
-  try {
-    event = stripeClient.webhooks.constructEvent(
-      rawBody,
-      signature,
-      process.env.STRIPE_WEBHOOK_SECRET,
-    );
-  } catch {
-    throw new AppError("Stripe webhook signature invalide", 400);
-  }
-
-  if (event.type === "checkout.session.completed") {
-    const session = event.data.object;
-    const txRef = session.client_reference_id || session.metadata?.txRef;
-    if (!txRef) return;
-
-    const payment = await prisma.payment.findUnique({ where: { flutterwaveTxRef: txRef } });
-    if (!payment || payment.webhookReceived || payment.status !== "PENDING") return;
-
-    await prisma.payment.update({ where: { id: payment.id }, data: { webhookReceived: true } });
-
-    if (session.payment_status === "paid") {
-      await creditVotes(payment);
-      logger.info(`Stripe webhook: votes credited txRef=${txRef}`);
-    }
   }
 }
 
@@ -509,8 +492,6 @@ module.exports = {
   initializePayment,
   verifyPayment,
   processFapshiWebhook,
-  processCinetPayWebhook,
-  processStripeWebhook,
   getUserPayments,
   creditVotes,
 };

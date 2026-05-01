@@ -7,14 +7,14 @@ import { useT } from "@/store/langStore";
 const faqsFr = [
   { q: "Comment voter ?", a: "Choisissez un candidat, cliquez 'Voter', renseignez votre nom et email, choisissez le montant (100 FCFA = 1 vote) et payez." },
   { q: "Combien coûte un vote ?", a: "1 vote = 100 FCFA. Vous pouvez voter autant de fois que vous le souhaitez." },
-  { q: "Quels paiements acceptés ?", a: "Fapshi (MTN / Orange Money), CinetPay (Mobile Money), GeniusPay (checkout multi-pays) et Stripe (carte bancaire)." },
+  { q: "Quels paiements acceptés ?", a: "Fapshi (MTN / Orange Money), PayPal (international) et GeniusPay (multi-pays)." },
   { q: "Mes votes sont-ils instantanés ?", a: "Oui. Dès validation du paiement, vos votes sont comptabilisés dans le classement en temps réel." },
   { q: "Comment participer au concours ?", a: "Accédez à la page Catégories et cherchez le formulaire de candidature. Validation sous 24h." },
 ];
 const faqsEn = [
   { q: "How to vote?", a: "Choose a candidate, click 'Vote', enter your name and email, choose the amount (100 FCFA = 1 vote) and pay." },
   { q: "How much does a vote cost?", a: "1 vote = 100 FCFA. You can vote as many times as you want." },
-  { q: "What payment methods are accepted?", a: "Fapshi (MTN / Orange Money), CinetPay (Mobile Money), GeniusPay (multi-country checkout) and Stripe (credit card)." },
+  { q: "What payment methods are accepted?", a: "Fapshi (MTN / Orange Money), PayPal (international) and GeniusPay (multi-country checkout)." },
   { q: "Are my votes instant?", a: "Yes. Once payment is validated, your votes are counted in the real-time ranking." },
   { q: "How to participate in the contest?", a: "Go to the Categories page and look for the candidacy form. Validation within 24 hours." },
 ];
