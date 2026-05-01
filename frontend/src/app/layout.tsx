@@ -17,7 +17,8 @@ export const metadata: Metadata = {
     images: [
       {
         url: "https://meta-miss-master-production.up.railway.app/og-image.png",
-    
+         width: 1200,
+         height: 630,
         alt: "Meta Miss Master 2025",
       },
     ],
