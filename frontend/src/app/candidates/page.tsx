@@ -3,8 +3,10 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import BottomNav from "@/components/layout/BottomNav";
 import api from "@/lib/api";
+import { useT } from "@/store/langStore";
 
 export default function CandidatesPage() {
+  const t = useT();
   const [candidates, setCandidates] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"ALL"|"MISS"|"MASTER">("ALL");
@@ -29,12 +31,11 @@ export default function CandidatesPage() {
 
   return (
     <div className="page-content fade-up">
-      {/* Top bar */}
       <div className="top-bar">
         <div style={{ width: 32 }} />
-        <span className="top-bar-title">Candidates</span>
-        <button style={{ width: 32, height: 32, border: "1px solid var(--border)", borderRadius: 8, background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2">
+        <span className="top-bar-title">{t.categories}</span>
+        <button style={{ width: 32, height: 32, border: "1px solid var(--border)", borderRadius: 8, background: "var(--bg-white)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2">
             <line x1="21" y1="4" x2="14" y2="4"/><line x1="10" y1="4" x2="3" y2="4"/>
             <line x1="21" y1="12" x2="12" y2="12"/><line x1="8" y1="12" x2="3" y2="12"/>
             <line x1="21" y1="20" x2="16" y2="20"/><line x1="12" y1="20" x2="3" y2="20"/>
@@ -48,14 +49,14 @@ export default function CandidatesPage() {
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2">
           <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
         </svg>
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher une candidate..." />
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t.searchPlaceholder} />
       </div>
 
       {/* Filter chips */}
       <div style={{ display: "flex", gap: 8, padding: "0 16px", marginBottom: 8 }}>
-        {(["ALL","MISS","MASTER"] as const).map(t => (
-          <button key={t} onClick={() => setFilter(t)} className={`chip${filter===t?" active":""}`}>
-            {t === "ALL" ? "Tous" : t === "MISS" ? "Miss" : "Master"}
+        {(["ALL","MISS","MASTER"] as const).map(filterOpt => (
+          <button key={filterOpt} onClick={() => setFilter(filterOpt)} className={`chip${filter===filterOpt?" active":""}`}>
+            {filterOpt === "ALL" ? t.all : filterOpt === "MISS" ? "Miss" : "Master"}
           </button>
         ))}
       </div>
@@ -71,22 +72,13 @@ export default function CandidatesPage() {
               <Link key={c.id} href={`/candidates/${c.id}`} style={{ textDecoration: "none" }}>
                 <div className="candidate-row fade-up" style={{ animationDelay: `${i*0.04}s` }}>
                   <div className={`rank-badge ${rank===1?"gold":rank===2?"silver":rank===3?"bronze":""}`}>{rank}</div>
-                  <img
-                    src={photo}
-                    alt={c.name}
-                    className="avatar"
-                    style={{ width: 48, height: 48, objectFit: "cover" }}
-                    onError={(e: any) => {
-                      e.target.src = "/placeholder-avatar.png";
-                      e.target.onerror = null;
-                    }}
-                  />
+                  <img src={photo} alt={c.name} className="avatar" style={{ width: 48, height: 48, objectFit: "cover" }} onError={(e: any) => { e.target.src = "/placeholder-avatar.png"; e.target.onerror = null; }} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 700, fontSize: "0.88rem", color: "var(--text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.name}</div>
-                    <div style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>Région {c.city}</div>
+                    <div style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>{t.region} {c.city}</div>
                   </div>
                   <Link href={`/vote/${c.id}`} onClick={e => e.stopPropagation()} className="btn-blue" style={{ width: "auto", padding: "8px 16px", fontSize: "0.75rem", flexShrink: 0 }}>
-                    Voter
+                    {t.vote}
                   </Link>
                   <button className={`heart-btn${isLiked?" liked":""}`} onClick={e => toggleLike(c.id, e)}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill={isLiked ? "#EF4444" : "none"} stroke={isLiked ? "#EF4444" : "#9CA3AF"} strokeWidth="2">
@@ -100,7 +92,7 @@ export default function CandidatesPage() {
       }
       {!loading && filtered.length === 0 && (
         <div style={{ textAlign: "center", padding: "60px 20px", color: "var(--text-muted)", fontSize: "0.88rem" }}>
-          Aucun candidat trouvé
+          {t.noCandidateFound}
         </div>
       )}
       <BottomNav />
