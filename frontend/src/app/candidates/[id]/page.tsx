@@ -116,8 +116,9 @@ export default function CandidateDetailPage() {
         setLiked(true);
         toast.success("Ajouté aux favoris ❤️");
       }
-    } catch {
-      toast.error("Impossible de mettre à jour le like");
+    } catch (error: any) {
+      const message = error?.response?.data?.message || "Impossible de mettre à jour le like";
+      toast.error(message);
     }
   };
 
@@ -155,12 +156,12 @@ export default function CandidateDetailPage() {
       </div>
 
       <style>{`
-        .photo-nav-overlay { position: absolute; left: 12px; right: 12px; bottom: 12px; display: flex; gap: 10px; justify-content: space-between; align-items: center; }
-        .photo-nav-button { flex: 1; min-width: 0; padding: 8px 10px; border-radius: 14px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text); font-size: 0.78rem; font-weight: 700; cursor: pointer; }
+        .photo-nav-row { display: flex; gap: 10px; margin: 10px 16px 4px; }
+        .photo-nav-button { flex: 1; min-width: 0; padding: 10px 12px; border-radius: 14px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text); font-size: 0.8rem; font-weight: 700; cursor: pointer; }
         .photo-nav-button:disabled { background: var(--border-light); color: var(--text-muted); cursor: not-allowed; }
-        .photo-nav-label { position: absolute; left: 12px; right: 12px; bottom: 56px; background: rgba(255,255,255,0.85); border-radius: 999px; padding: 4px 10px; text-align: center; font-size: 0.72rem; color: var(--text-muted); backdrop-filter: blur(8px); }
+        .photo-nav-label { text-align: center; font-size: 0.75rem; color: var(--text-muted); margin: 0 16px 10px; }
         .candidate-layout { display: block; }
-        .candidate-photo-wrap { position: relative; margin: 0 16px 16px; border-radius: 20px; overflow: hidden; background: var(--bg); }
+        .candidate-photo-wrap { position: relative; margin: 0 16px 10px; border-radius: 20px; overflow: hidden; background: var(--bg); }
         .candidate-info { padding: 0 16px 24px; }
         @media (min-width: 640px) { .candidate-photo-wrap { margin: 0 24px 20px; border-radius: 24px; } }
         @media (min-width: 1024px) {
@@ -176,16 +177,16 @@ export default function CandidateDetailPage() {
         <div className="candidate-photo-wrap">
           {!imgLoaded && <div className="photo-skeleton" style={{ height: 300 }} />}
           <img src={photo} alt={candidate.name} style={{ width: "100%", height: "auto", maxWidth: "100%", display: imgLoaded ? "block" : "none", objectFit: "contain", transition: "opacity .3s" }} onLoad={() => setImgLoaded(true)} onError={(e: any) => { e.target.style.display = "none"; setImgLoaded(true); }} />
-          <div className="photo-nav-label">{categoryCandidates.length > 0 ? `${currentIndex + 1} / ${categoryCandidates.length}` : "Swipe gauche/droite pour naviguer"}</div>
-          <div className="photo-nav-overlay">
-            <button type="button" onClick={handlePrev} disabled={!previousCandidate} className="photo-nav-button">
-              ←
-            </button>
-            <button type="button" onClick={handleNext} disabled={!nextCandidate} className="photo-nav-button">
-              →
-            </button>
-          </div>
         </div>
+        <div className="photo-nav-row">
+          <button type="button" onClick={handlePrev} disabled={!previousCandidate} className="photo-nav-button">
+            ← {previousCandidate ? previousCandidate.name.split(" ")[0] : t.previous}
+          </button>
+          <button type="button" onClick={handleNext} disabled={!nextCandidate} className="photo-nav-button">
+            {nextCandidate ? nextCandidate.name.split(" ")[0] : t.next} →
+          </button>
+        </div>
+        <div className="photo-nav-label">{categoryCandidates.length > 0 ? `${currentIndex + 1} / ${categoryCandidates.length}` : "Swipe gauche/droite pour naviguer"}</div>
 
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 16px 4px", gap: 10 }}>
           <div style={{ background: candidate.type === "MISS" ? "linear-gradient(135deg,#ec4899,#be185d)" : "linear-gradient(135deg,#6366f1,#4338ca)", color: "#fff", padding: "5px 14px", borderRadius: 100, fontSize: "0.7rem", fontWeight: 800, letterSpacing: "0.08em" }}>

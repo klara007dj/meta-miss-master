@@ -29,6 +29,7 @@ async function createCandidate({ name, type, age, city, bio, photoPath, instagra
       bio,
       photoUrl,
       status: "PENDING",
+      totalLikes: 0,
       instagram: instagram?.trim() || null,
       tiktok: tiktok?.trim() || null,
       snap: snap?.trim() || null,

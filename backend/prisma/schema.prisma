@@ -61,6 +61,7 @@ model Candidate {
   photoUrl    String
   status      CandidateStatus @default(PENDING)
   totalVotes  Int             @default(0)
+  totalLikes  Int             @default(0)
   instagram   String?
   tiktok      String?
   snap        String?
