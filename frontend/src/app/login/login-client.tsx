@@ -269,7 +269,10 @@ export default function LoginClient({ initialTab, redirect, oauthToken, oauthRef
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 1000 }}>
           <div style={{ width: "100%", maxWidth: 420, background: "var(--bg-white)", borderRadius: 20, boxShadow: "0 24px 80px rgba(0,0,0,0.18)", padding: 24, textAlign: "center" }}>
             <div style={{ width: 52, height: 52, borderRadius: "50%", background: "#25D366", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2"><path d="M21 16.5a9 9 0 10-9 9c1.6 0 3.18-.4 4.55-1.1L23 23l-1.6-4.65A8.95 8.95 0 0021 16.5z"/><path d="M16 13.5c-.3.1-1.8.9-2.1 1a1 1 0 01-1.3-.45c-.4-.7-1.1-1.1-1.1-1.2 0-.1 0-.2.1-.3.1-.1.2-.2.3-.3.1-.1.2-.1.3-.1.1 0 .2 0 .3.1.1.1.5.4.6.5.1.1.1.2.1.3 0 .1 0 .2-.1.3-.1.1-.2.2-.4.3-.2.1-.3.2-.5.2-.2 0-.3 0-.4-.1-.1-.1-.3-.2-.4-.3-.1-.1-.2-.3-.2-.4 0-.2 0-.4.1-.5.1-.1.2-.2.3-.3.1-.1.4-.3.7-.3.3 0 .7.1 1 .3.3.2.5.5.6.8.1.3.2.6.2.8 0 .3 0 .6-.1.9-.1.3-.2.5-.4.8z"/></svg>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M16.65 7.86c-.15-.34-.7-.55-1.32-.55-.6 0-1.51.26-1.92.55-.45.34-.83.88-.95 1.22-.07.2-.36.64-.36.64s-.41.64-.38 1.55c.03.91.6 1.84.58 1.95-.02.1-.15.16-.31.08-.44-.24-1.25-1.07-1.78-2.32-.13-.33-.27-.51-.43-.57-.42-.15-.96.15-1.18.19-.31.06-.54.23-.79.72-.24.48-.99 1.66.98 3.47.74.67 1.55 1.09 2.29 1.33.97.31 1.84.25 2.5.15.77-.12 2.43-.99 2.86-1.91.36-.8.36-1.48.25-1.72-.14-.31-.5-.54-1.01-.55-.11-.01-.44.01-.68.01-.22 0-.52-.03-.79-.04-.32-.02-.61-.14-.86-.28z" />
+                <path d="M12.01 2.01C6.42 2.01 2 6.44 2 12.04c0 1.86.55 3.59 1.5 5.04L2 22l4.05-1.34c1.37.76 2.93 1.19 4.54 1.19 5.59 0 10.01-4.44 10.01-9.94 0-5.6-4.42-10.01-10.04-10.01z" />
+              </svg>
             </div>
             <h2 style={{ fontSize: "1.2rem", fontWeight: 800, color: "var(--text)", marginBottom: 10 }}>Rejoignez le groupe WhatsApp</h2>
             <p style={{ fontSize: "0.95rem", color: "var(--text-muted)", marginBottom: 22, lineHeight: 1.6 }}>

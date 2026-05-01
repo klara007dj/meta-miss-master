@@ -9,8 +9,7 @@ export default function SettingsPage() {
   const router = useRouter();
   const t = useT();
 
-  // TODO: Remplacer ce lien par le vrai lien d'invitation du groupe WhatsApp
-  const WHATSAPP_GROUP_LINK = "https://chat.whatsapp.com/VOTRE_LIEN_GROUPE";
+  const WHATSAPP_GROUP_LINK = "https://chat.whatsapp.com/HuksAebrAfVBEt292xU4KF?mode=gi_t";
   const WHATSAPP_SUPPORT = "https://wa.me/237694600007";
 
   const sectionStyle = {

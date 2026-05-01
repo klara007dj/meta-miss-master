@@ -3,16 +3,19 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import BottomNav from "@/components/layout/BottomNav";
 import api from "@/lib/api";
+import { useAuthStore } from "@/store/authStore";
 import { useT } from "@/store/langStore";
 
 export default function CandidatesPage() {
   const t = useT();
+  const user = useAuthStore((state) => state.user);
   const [candidates, setCandidates] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"ALL"|"MISS"|"MASTER">("ALL");
   const [search, setSearch] = useState("");
   const [liked, setLiked] = useState<Set<string>>(new Set());
   const apiBase = process.env.NEXT_PUBLIC_API_URL?.replace("/api","") || "http://localhost:5000";
+  const likesKey = user ? `mmm-likes-${user.id}` : "mmm-likes-guest";
 
   useEffect(() => {
     api.get("/candidates?limit=100")
@@ -20,9 +23,24 @@ export default function CandidatesPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(likesKey) || "[]") as string[];
+      setLiked(new Set(saved));
+    } catch {
+      setLiked(new Set());
+    }
+  }, [likesKey]);
+
   const toggleLike = (id: string, e: React.MouseEvent) => {
     e.preventDefault();
-    setLiked(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
+    setLiked((prev) => {
+      const s = new Set(prev);
+      if (s.has(id)) s.delete(id);
+      else s.add(id);
+      localStorage.setItem(likesKey, JSON.stringify([...s]));
+      return s;
+    });
   };
 
   const filtered = candidates

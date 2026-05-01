@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import BottomNav from "@/components/layout/BottomNav";
 import api from "@/lib/api";
+import { useAuthStore } from "@/store/authStore";
 import { useT } from "@/store/langStore";
 import toast from "react-hot-toast";
 
@@ -21,20 +22,22 @@ interface Candidate {
 export default function FavoritesPage() {
   const router = useRouter();
   const t = useT();
+  const user = useAuthStore((state) => state.user);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loading, setLoading] = useState(true);
   const apiBase = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api").replace("/api", "");
+  const likesKey = user ? `mmm-likes-${user.id}` : "mmm-likes-guest";
 
   useEffect(() => {
     loadFavorites();
-  }, []);
+  }, [likesKey]);
 
   const loadFavorites = async () => {
     setLoading(true);
     try {
       // Lire les IDs depuis localStorage
-      const likedIds: string[] = JSON.parse(localStorage.getItem("mmm-likes") || "[]");
-      if (likedIds.length === 0) { setLoading(false); return; }
+      const likedIds: string[] = JSON.parse(localStorage.getItem(likesKey) || "[]");
+      if (likedIds.length === 0) { setCandidates([]); setLoading(false); return; }
 
       // Fetch chaque candidat
       const results = await Promise.allSettled(
@@ -52,9 +55,9 @@ export default function FavoritesPage() {
 
   const unlike = async (candidateId: string) => {
     // Retirer du localStorage
-    const likedIds: string[] = JSON.parse(localStorage.getItem("mmm-likes") || "[]");
+    const likedIds: string[] = JSON.parse(localStorage.getItem(likesKey) || "[]");
     const newIds = likedIds.filter((id) => id !== candidateId);
-    localStorage.setItem("mmm-likes", JSON.stringify(newIds));
+    localStorage.setItem(likesKey, JSON.stringify(newIds));
 
     // Décrémenter le compteur côté API
     try {
