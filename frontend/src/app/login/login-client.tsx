@@ -27,7 +27,8 @@ export default function LoginClient({ initialTab, redirect, oauthToken, oauthRef
       api.get("/auth/me")
         .then((response) => {
           setAuth(response.data.data, oauthToken, oauthRefreshToken);
-          router.push(redirect);
+          setRedirectAfterPopup(redirect);
+          setShowWhatsAppPopup(true);
         })
         .catch(() => {
           toast.error("Connexion Google échouée");
@@ -37,6 +38,8 @@ export default function LoginClient({ initialTab, redirect, oauthToken, oauthRef
 
   const [tab, setTab] = useState<"login" | "register">(initialTab);
   const [loading, setLoading] = useState(false);
+  const [showWhatsAppPopup, setShowWhatsAppPopup] = useState(false);
+  const [redirectAfterPopup, setRedirectAfterPopup] = useState(redirect);
   const [credentials, setCredentials] = useState({
     email: "",
     password: "",
@@ -59,7 +62,8 @@ export default function LoginClient({ initialTab, redirect, oauthToken, oauthRef
         password: credentials.password,
       });
       setAuth(data.data.user, data.data.accessToken, data.data.refreshToken);
-      router.push(redirect);
+      setRedirectAfterPopup(redirect);
+      setShowWhatsAppPopup(true);
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Erreur de connexion");
     } finally {
@@ -78,7 +82,8 @@ export default function LoginClient({ initialTab, redirect, oauthToken, oauthRef
         phone: credentials.phone,
       });
       setAuth(data.data.user, data.data.accessToken, data.data.refreshToken);
-      router.push(redirect);
+      setRedirectAfterPopup(redirect);
+      setShowWhatsAppPopup(true);
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Erreur d'inscription");
     } finally {
@@ -259,6 +264,36 @@ export default function LoginClient({ initialTab, redirect, oauthToken, oauthRef
           </form>
         )}
       </div>
+
+      {showWhatsAppPopup && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 1000 }}>
+          <div style={{ width: "100%", maxWidth: 420, background: "var(--bg-white)", borderRadius: 20, boxShadow: "0 24px 80px rgba(0,0,0,0.18)", padding: 24, textAlign: "center" }}>
+            <div style={{ width: 52, height: 52, borderRadius: "50%", background: "#25D366", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2"><path d="M21 16.5a9 9 0 10-9 9c1.6 0 3.18-.4 4.55-1.1L23 23l-1.6-4.65A8.95 8.95 0 0021 16.5z"/><path d="M16 13.5c-.3.1-1.8.9-2.1 1a1 1 0 01-1.3-.45c-.4-.7-1.1-1.1-1.1-1.2 0-.1 0-.2.1-.3.1-.1.2-.2.3-.3.1-.1.2-.1.3-.1.1 0 .2 0 .3.1.1.1.5.4.6.5.1.1.1.2.1.3 0 .1 0 .2-.1.3-.1.1-.2.2-.4.3-.2.1-.3.2-.5.2-.2 0-.3 0-.4-.1-.1-.1-.3-.2-.4-.3-.1-.1-.2-.3-.2-.4 0-.2 0-.4.1-.5.1-.1.2-.2.3-.3.1-.1.4-.3.7-.3.3 0 .7.1 1 .3.3.2.5.5.6.8.1.3.2.6.2.8 0 .3 0 .6-.1.9-.1.3-.2.5-.4.8z"/></svg>
+            </div>
+            <h2 style={{ fontSize: "1.2rem", fontWeight: 800, color: "var(--text)", marginBottom: 10 }}>Rejoignez le groupe WhatsApp</h2>
+            <p style={{ fontSize: "0.95rem", color: "var(--text-muted)", marginBottom: 22, lineHeight: 1.6 }}>
+              Pour ne rien manquer, rejoignez notre groupe WhatsApp après votre connexion ou inscription.
+            </p>
+            <button
+              type="button"
+              onClick={() => window.open("https://chat.whatsapp.com/HuksAebrAfVBEt292xU4KF?mode=gi_t", "_blank")}
+              className="btn-blue"
+              style={{ width: "100%", marginBottom: 10 }}
+            >
+              Rejoindre le groupe WhatsApp
+            </button>
+            <button
+              type="button"
+              onClick={() => { setShowWhatsAppPopup(false); router.push(redirectAfterPopup); }}
+              className="btn-outline"
+              style={{ width: "100%" }}
+            >
+              Continuer sans rejoindre
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

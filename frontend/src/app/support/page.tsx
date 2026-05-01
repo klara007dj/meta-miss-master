@@ -55,8 +55,11 @@ export default function SupportPage() {
           <div style={{ fontSize: "1.5rem", marginBottom: 10 }}>💬</div>
           <div style={{ fontWeight: 700, fontSize: "0.95rem", color: "var(--text)", marginBottom: 6 }}>{t.contactUs}</div>
           <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: 16 }}>{t.teamAvailable}</p>
+          <p style={{ fontSize: "0.82rem", color: "var(--text)", marginBottom: 16, lineHeight: 1.6 }}>
+            Rejoignez notre groupe WhatsApp pour ne rien manquer : annonces, astuces de vote et mises à jour en temps réel.
+          </p>
           <div style={{ display: "flex", gap: 8 }}>
-            <a href="https://wa.me/237600000000" className="btn-blue" style={{ flex: 1, fontSize: "0.8rem" }}>{t.whatsappBtn}</a>
+            <a href="https://chat.whatsapp.com/HuksAebrAfVBEt292xU4KF?mode=gi_t" className="btn-blue" style={{ flex: 1, fontSize: "0.8rem" }} target="_blank" rel="noreferrer">Rejoindre le groupe WhatsApp</a>
             <a href="mailto:support@metamissemaster.cm" className="btn-outline" style={{ flex: 1, fontSize: "0.8rem" }}>{t.emailBtn}</a>
           </div>
         </div>
