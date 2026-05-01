@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation";
 import api from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 import toast from "react-hot-toast";
+import LangSelector from "@/components/ui/LangSelector";
+import { useT } from "@/store/langStore";
 
 type Props = {
   initialTab: "login" | "register";
@@ -14,6 +16,7 @@ type Props = {
 
 export default function LoginClient({ initialTab, redirect, oauthToken, oauthRefreshToken }: Props) {
   const router = useRouter();
+  const t = useT();
   const setAuth = useAuthStore((state) => state.setAuth);
   const setTokens = useAuthStore((state) => state.setTokens);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -41,9 +44,7 @@ export default function LoginClient({ initialTab, redirect, oauthToken, oauthRef
     phone: "",
   });
 
-  useEffect(() => {
-    setTab(initialTab);
-  }, [initialTab]);
+  useEffect(() => { setTab(initialTab); }, [initialTab]);
 
   const handleChange = (key: string, value: string) => {
     setCredentials((prev) => ({ ...prev, [key]: value }));
@@ -85,140 +86,178 @@ export default function LoginClient({ initialTab, redirect, oauthToken, oauthRef
     }
   };
 
-  const inputStyle: React.CSSProperties = {
-    width: "100%",
-    padding: "14px 16px",
-    borderRadius: 14,
-    border: "1px solid var(--border)",
-    background: "#fff",
-    color: "var(--text)",
-    fontFamily: "var(--font)",
-    outline: "none",
-    marginBottom: 14,
-  };
-
   return (
-    <div className="page-content fade-up">
-      <div className="top-bar">
-        <div style={{ width: 32 }} />
-        <span className="top-bar-title">Connexion / Inscription</span>
-        <div style={{ width: 32 }} />
+    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "var(--bg)" }}>
+
+      {/* ─── Header avec LangSelector ──────────────────────────────────────── */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px" }}>
+        <div style={{ fontWeight: 800, fontSize: "1.1rem", color: "var(--text)" }}>
+          Meta<span style={{ color: "var(--blue)" }}>Miss</span>
+        </div>
+        <LangSelector />
       </div>
 
-      <div style={{ padding: "20px 16px 24px" }}>
-        <div style={{ display: "flex", gap: 10, marginBottom: 24 }}>
-          {[
-            { key: "login", label: "Se connecter" },
-            { key: "register", label: "S'inscrire" },
-          ].map((item) => (
+      {/* ─── Tabs ──────────────────────────────────────────────────────────── */}
+      <div style={{ padding: "0 20px 20px" }}>
+        <h1 style={{ fontSize: "1.5rem", fontWeight: 800, color: "var(--text)", marginBottom: 4 }}>
+          {tab === "login" ? t.loginTitle : t.registerTitle}
+        </h1>
+        <div style={{ display: "flex", gap: 8, marginTop: 16, marginBottom: 24 }}>
+          {(["login", "register"] as const).map((tabKey) => (
             <button
-              key={item.key}
+              key={tabKey}
               type="button"
-              onClick={() => setTab(item.key as "login" | "register")}
+              onClick={() => setTab(tabKey)}
               style={{
                 flex: 1,
-                padding: "12px 0",
-                borderRadius: 999,
-                border: item.key === tab ? "1px solid var(--blue)" : "1px solid var(--border)",
-                background: item.key === tab ? "var(--blue)" : "transparent",
-                color: item.key === tab ? "#fff" : "var(--text)",
-                fontWeight: 700,
+                padding: "10px 0",
+                borderRadius: 12,
+                border: "none",
                 cursor: "pointer",
+                fontWeight: 700,
+                fontSize: "0.88rem",
+                fontFamily: "var(--font)",
+                background: tab === tabKey ? "var(--blue)" : "var(--border-light)",
+                color: tab === tabKey ? "#fff" : "var(--text-muted)",
+                transition: "all 0.2s",
               }}
             >
-              {item.label}
+              {tabKey === "login" ? t.login : t.register}
             </button>
           ))}
         </div>
 
-        {tab === "login" ? (
-          <form onSubmit={handleLogin}>
-            <input
-              value={credentials.email}
-              type="email"
-              placeholder="Email"
-              onChange={(e) => handleChange("email", e.target.value)}
-              style={inputStyle}
-            />
-            <input
-              value={credentials.password}
-              type="password"
-              placeholder="Mot de passe"
-              onChange={(e) => handleChange("password", e.target.value)}
-              style={inputStyle}
-            />
-            <button type="submit" className="btn-blue" style={{ width: "100%", opacity: loading ? 0.7 : 1 }}>
-              {loading ? "Connexion..." : "Se connecter"}
+        {/* ─── Login form ─────────────────────────────────────────────────── */}
+        {tab === "login" && (
+          <form onSubmit={handleLogin} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div>
+              <label style={{ fontSize: "0.78rem", fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 6 }}>
+                {t.email}
+              </label>
+              <input
+                type="email"
+                required
+                value={credentials.email}
+                onChange={(e) => handleChange("email", e.target.value)}
+                placeholder="vous@email.com"
+                className="admin-input"
+                style={{ width: "100%" }}
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: "0.78rem", fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 6 }}>
+                {t.password}
+              </label>
+              <input
+                type="password"
+                required
+                value={credentials.password}
+                onChange={(e) => handleChange("password", e.target.value)}
+                placeholder="••••••••"
+                className="admin-input"
+                style={{ width: "100%" }}
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="btn-blue"
+              style={{ marginTop: 4, opacity: loading ? 0.7 : 1 }}
+            >
+              {loading ? t.loading : t.login}
             </button>
-          </form>
-        ) : (
-          <form onSubmit={handleRegister}>
-            <input
-              value={credentials.name}
-              type="text"
-              placeholder="Nom complet"
-              onChange={(e) => handleChange("name", e.target.value)}
-              style={inputStyle}
-            />
-            <input
-              value={credentials.email}
-              type="email"
-              placeholder="Email"
-              onChange={(e) => handleChange("email", e.target.value)}
-              style={inputStyle}
-            />
-            <input
-              value={credentials.password}
-              type="password"
-              placeholder="Mot de passe"
-              onChange={(e) => handleChange("password", e.target.value)}
-              style={inputStyle}
-            />
-            <input
-              value={credentials.phone}
-              type="tel"
-              placeholder="Téléphone"
-              onChange={(e) => handleChange("phone", e.target.value)}
-              style={inputStyle}
-            />
-            <button type="submit" className="btn-blue" style={{ width: "100%", opacity: loading ? 0.7 : 1 }}>
-              {loading ? "Inscription..." : "Créer un compte"}
-            </button>
+            <p style={{ textAlign: "center", fontSize: "0.82rem", color: "var(--text-muted)" }}>
+              {t.noAccount}{" "}
+              <button type="button" onClick={() => setTab("register")} style={{ color: "var(--blue)", fontWeight: 700, background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font)", fontSize: "0.82rem" }}>
+                {t.register}
+              </button>
+            </p>
           </form>
         )}
 
-        <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "16px 0" }}>
-          <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
-          <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>ou</span>
-          <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
-        </div>
+        {/* ─── Register form ──────────────────────────────────────────────── */}
+        {tab === "register" && (
+          <form onSubmit={handleRegister} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div>
+              <label style={{ fontSize: "0.78rem", fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 6 }}>
+                {t.fullName}
+              </label>
+              <input
+                type="text"
+                required
+                value={credentials.name}
+                onChange={(e) => handleChange("name", e.target.value)}
+                placeholder="Jean Dupont"
+                className="admin-input"
+                style={{ width: "100%" }}
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: "0.78rem", fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 6 }}>
+                {t.email}
+              </label>
+              <input
+                type="email"
+                required
+                value={credentials.email}
+                onChange={(e) => handleChange("email", e.target.value)}
+                placeholder="vous@email.com"
+                className="admin-input"
+                style={{ width: "100%" }}
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: "0.78rem", fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 6 }}>
+                {t.phone}
+              </label>
+              <input
+                type="tel"
+                value={credentials.phone}
+                onChange={(e) => handleChange("phone", e.target.value)}
+                placeholder="+237 6XX XXX XXX"
+                className="admin-input"
+                style={{ width: "100%" }}
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: "0.78rem", fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 6 }}>
+                {t.password}
+              </label>
+              <input
+                type="password"
+                required
+                value={credentials.password}
+                onChange={(e) => handleChange("password", e.target.value)}
+                placeholder="••••••••"
+                className="admin-input"
+                style={{ width: "100%" }}
+              />
+            </div>
 
-        <button
-          type="button"
-          onClick={() => window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/auth/google`}
-          style={{
-            width: "100%",
-            padding: "13px 16px",
-            borderRadius: 14,
-            border: "1px solid var(--border)",
-            background: "#fff",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 10,
-            cursor: "pointer",
-            fontWeight: 600,
-            color: "#374151"
-          }}
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M22 12.24c0-.71-.06-1.4-.17-2.06H12v3.9h5.61c-.24 1.3-.96 2.4-2.05 3.13v2.6h3.32c1.94-1.79 3.06-4.42 3.06-7.57z" fill="#4285F4"/>
-            <path d="M12 23c2.7 0 4.97-.9 6.63-2.44l-3.32-2.6c-.92.62-2.09.98-3.31.98-2.54 0-4.7-1.72-5.48-4.03H2.97v2.53C4.62 20.88 8.02 23 12 23z" fill="#34A853"/>
-            <path d="M6.52 14.94c-.2-.6-.31-1.24-.31-1.94s.11-1.34.31-1.94V8.53H2.97c-.62 1.24-.97 2.62-.97 4.06s.35 2.82.97 4.06l3.55-2.53z" fill="#FBBC05"/>
-            <path d="M12 4.47c1.47 0 2.8.51 3.84 1.51l2.88-2.88C16.96 1.45 14.7.5 12 .5 8.02.5 4.62 2.62 2.97 5.76l3.55 2.53C7.3 6.19 9.46 4.47 12 4.47z" fill="#EA4335"/>
-          </svg>
-          Continuer avec Google
-        </button>
+            {/* Sélecteur de langue visible aussi dans le formulaire */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderRadius: 12, background: "var(--border-light)", border: "1px solid var(--border)" }}>
+              <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-2)" }}>
+                {t.selectLanguage}
+              </span>
+              <LangSelector />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="btn-blue"
+              style={{ marginTop: 4, opacity: loading ? 0.7 : 1 }}
+            >
+              {loading ? t.loading : t.register}
+            </button>
+            <p style={{ textAlign: "center", fontSize: "0.82rem", color: "var(--text-muted)" }}>
+              {t.alreadyAccount}{" "}
+              <button type="button" onClick={() => setTab("login")} style={{ color: "var(--blue)", fontWeight: 700, background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font)", fontSize: "0.82rem" }}>
+                {t.login}
+              </button>
+            </p>
+          </form>
+        )}
       </div>
     </div>
   );
