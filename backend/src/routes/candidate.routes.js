@@ -12,12 +12,16 @@ const candidateValidation = [
   body("age").isInt({ min: 16, max: 35 }).withMessage("Âge entre 16 et 35"),
   body("city").trim().notEmpty().withMessage("Ville requise"),
   body("bio").optional().isLength({ max: 500 }),
-  body("phone").optional().isString().withMessage("Téléphone invalide")
+  body("phone").optional().isString().withMessage("Téléphone invalide"),
 ];
 
 router.get("/", candidateController.getAll);
 router.get("/top", candidateController.getTopCandidates);
 router.get("/:id", candidateController.getById);
 router.post("/register", authenticate, upload.single("photo"), candidateValidation, candidateController.register);
+
+// ── Likes (pas d'auth requise — n'importe qui peut liker) ──────────────────
+router.post("/:id/like", candidateController.like);
+router.delete("/:id/like", candidateController.unlike);
 
 module.exports = router;
