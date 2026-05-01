@@ -1,13 +1,14 @@
 "use client";
-import { createContext, useContext, ReactNode } from "react";
+import { useEffect } from "react";
+import { useThemeStore } from "@/store/themeStore";
 
-const ThemeContext = createContext({ theme: "light", toggleTheme: () => {} });
-export const useThemeContext = () => useContext(ThemeContext);
+export default function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const theme = useThemeStore((s) => s.theme);
 
-export function ThemeProvider({ children }: { children: ReactNode }) {
-  return (
-    <ThemeContext.Provider value={{ theme: "light", toggleTheme: () => {} }}>
-      {children}
-    </ThemeContext.Provider>
-  );
+  useEffect(() => {
+    // Applique immédiatement au montage pour éviter le flash
+    document.documentElement.setAttribute("data-theme", theme);
+  }, [theme]);
+
+  return <>{children}</>;
 }
