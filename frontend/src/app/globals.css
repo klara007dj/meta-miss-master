@@ -29,6 +29,35 @@
   --shadow-md:   0 4px 16px rgba(0,0,0,0.08);
   --shadow-lg:   0 10px 40px rgba(37,99,235,0.15);
 }
+/* ══════════════════════════════════════════════
+   DARK MODE — appliqué via data-theme="dark"
+   sur <html> par ThemeProvider + themeStore
+══════════════════════════════════════════════ */
+[data-theme="dark"] {
+  --blue:        #60A5FA;
+  --blue-hover:  #3B82F6;
+  --blue-light:  #1E3A5F;
+  --blue-mid:    #1E3A5F;
+  --text:        #F1F5F9;
+  --text-2:      #CBD5E1;
+  --text-muted:  #94A3B8;
+  --text-faint:  #64748B;
+  --bg:          #0F172A;
+  --bg-white:    #1E293B;
+  --bg-card:     #1E293B;
+  --border:      #334155;
+  --border-light:#273344;
+  --shadow:      0 1px 3px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.3);
+  --shadow-md:   0 4px 16px rgba(0,0,0,0.3);
+  --shadow-lg:   0 10px 40px rgba(0,0,0,0.4);
+}
+
+/* Transition douce sur tous les éléments lors du changement de thème */
+*, *::before, *::after {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.15s ease;
+}
+
+
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; }
