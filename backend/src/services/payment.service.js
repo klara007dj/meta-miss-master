@@ -195,14 +195,53 @@ async function initGeniusPay({ txRef, amount, userEmail, userName, candidateName
     throw new AppError("Montant minimum pour GeniusPay : 200 FCFA (2 votes)", 400);
   }
 
+  // Mapper les noms de pays vers les codes ISO2 attendus par GeniusPay
+  const COUNTRY_ISO2 = {
+    "cameroun": "CM", "cameroon": "CM",
+    "côte d'ivoire": "CI", "cote d'ivoire": "CI", "cote divoire": "CI", "ivory coast": "CI",
+    "sénégal": "SN", "senegal": "SN",
+    "mali": "ML",
+    "burkina faso": "BF", "burkina": "BF",
+    "bénin": "BJ", "benin": "BJ",
+    "togo": "TG",
+    "niger": "NE",
+    "guinée": "GN", "guinee": "GN",
+    "ghana": "GH",
+    "nigeria": "NG",
+    "kenya": "KE",
+    "rwanda": "RW",
+    "ouganda": "UG", "uganda": "UG",
+    "congo": "CG",
+    "rd congo": "CD", "rdc": "CD",
+    "gabon": "GA",
+    "zambie": "ZM", "zambia": "ZM",
+    "sierra leone": "SL",
+    "france": "FR",
+  };
+
+  const resolveCountry = (c) => {
+    if (!c) return "CI";
+    if (c.length === 2) return c.toUpperCase(); // déjà un code ISO2
+    return COUNTRY_ISO2[c.toLowerCase().trim()] || "CI";
+  };
+
+  const countryCode = resolveCountry(country);
+
+  // description max 500 chars selon la doc GeniusPay
+  const rawDesc = `${candidateName} - ${amount.toLocaleString("fr-FR")} FCFA`;
+  const description = rawDesc.length > 500 ? rawDesc.substring(0, 497) + "..." : rawDesc;
+
+  // customer.name max 100 chars
+  const safeUserName = (userName || "Votant").substring(0, 100);
+
   const payload = {
     amount,
-    description: `${candidateName} - ${amount.toLocaleString("fr-FR")} FCFA`,
+    description,
     customer: {
-      name: userName,
+      name: safeUserName,
       email: userEmail,
       ...(voterPhone && { phone: voterPhone }),
-      country: country || "CI",
+      country: countryCode,
     },
     success_url: `${process.env.FRONTEND_URL}/vote/callback?tx_ref=${txRef}&provider=geniuspay&status=completed`,
     error_url: `${process.env.FRONTEND_URL}/vote/callback?tx_ref=${txRef}&provider=geniuspay&status=failed`,
@@ -210,7 +249,7 @@ async function initGeniusPay({ txRef, amount, userEmail, userName, candidateName
       candidateName,
       userEmail,
       txRef,
-      country: country || "CI",
+      country: countryCode,
     },
   };
 
