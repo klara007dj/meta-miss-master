@@ -6,7 +6,7 @@ const { paymentRateLimiter } = require("../middlewares/rateLimiter");
 
 const router = express.Router();
 
-// Webhooks — raw body obligatoire pour la vérification de signature
+// ─── Webhooks ─────────────────────────────────────────────────────────────────
 router.post(
   "/webhook/fapshi",
   express.raw({ type: "*/*" }),
@@ -19,28 +19,52 @@ router.post(
   paymentController.webhookGeniusPay
 );
 
-// Initialize payment
+// ─── Initialize payment ───────────────────────────────────────────────────────
 router.post(
   "/initialize",
   paymentRateLimiter,
   [
-    body("candidateId").notEmpty().withMessage("Candidat requis"),
-    body("amount").isInt({ min: 100 }).withMessage("Montant minimum 100 FCFA"),
-    body("provider").isIn(["fapshi", "paypal", "geniuspay"]).withMessage("Provider invalide"),
-    body("country").optional().trim().isLength({ min: 2, max: 60 }).withMessage("Pays invalide"),
-    body("voterName").trim().isLength({ min: 2, max: 100 }).withMessage("Nom requis"),
-    body("voterEmail").isEmail().normalizeEmail().withMessage("Email requis"),
+    body("candidateId")
+      .notEmpty()
+      .withMessage("Candidat requis"),
+
+    body("amount")
+      .isInt({ min: 100 })
+      .withMessage("Montant minimum 100 FCFA"),
+
+    body("provider")
+      .isIn(["fapshi", "paypal", "geniuspay"])
+      .withMessage("Provider invalide"),
+
+    body("country")
+      .optional({ nullable: true, checkFalsy: true })
+      .trim()
+      .isLength({ min: 2, max: 60 })
+      .withMessage("Pays invalide"),
+
+    body("voterName")
+      .trim()
+      .isLength({ min: 2, max: 100 })
+      .withMessage("Nom requis (min 2 caractères)"),
+
+    body("voterEmail")
+      .isEmail()
+      .normalizeEmail()
+      .withMessage("Email invalide"),
+
     body("voterPhone")
-      .optional()
+      .optional({ nullable: true, checkFalsy: true })
       .trim()
       .isLength({ min: 6, max: 30 })
-      .withMessage("Téléphone invalide"),
+      .withMessage("Téléphone invalide (min 6 caractères)"),
   ],
   paymentController.initialize,
 );
 
+// ─── Verify payment ───────────────────────────────────────────────────────────
 router.get("/verify/:txRef", paymentController.verify);
 
+// ─── Authenticated routes ─────────────────────────────────────────────────────
 router.use(authenticate);
 router.get("/history", paymentController.history);
 
