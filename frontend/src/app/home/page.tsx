@@ -11,13 +11,33 @@ export default function HomeDashboardPage() {
   const [stats, setStats] = useState<any>(null);
   const [topMiss, setTopMiss] = useState<any[]>([]);
   const [topMaster, setTopMaster] = useState<any[]>([]);
+  const [contest, setContest] = useState<any>(null);
   const apiBase = process.env.NEXT_PUBLIC_API_URL?.replace("/api", "") || "http://localhost:5000";
 
   useEffect(() => {
     api.get("/ranking/stats").then((r) => setStats(r.data.data)).catch(() => {});
     api.get("/candidates/top?type=MISS&limit=6").then((r) => setTopMiss(r.data.data || [])).catch(() => {});
     api.get("/candidates/top?type=MASTER&limit=6").then((r) => setTopMaster(r.data.data || [])).catch(() => {});
+    api.get("/contest/active").then((r) => setContest(r.data.data)).catch(() => {});
   }, []);
+
+  // Calcul des jours restants / avant début
+  const contestInfo = (() => {
+    if (!contest) return { label: "—", sub: "Aucun concours", color: "#2563EB" };
+    const now = new Date();
+    const start = new Date(contest.startDate);
+    const end = contest.endDate ? new Date(contest.endDate) : null;
+    if (now < start) {
+      const diff = Math.ceil((start.getTime() - now.getTime()) / 86400000);
+      return { label: diff, sub: `Début dans ${diff}j`, color: "#F59E0B" };
+    }
+    if (end) {
+      const diff = Math.ceil((end.getTime() - now.getTime()) / 86400000);
+      if (diff <= 0) return { label: "Terminé", sub: "Concours clôturé", color: "#94A3B8" };
+      return { label: diff, sub: "Jours restants", color: "#2563EB" };
+    }
+    return { label: "∞", sub: "Sans date de fin", color: "#10B981" };
+  })();
 
   const topAll = [...topMiss, ...topMaster].slice(0, 8);
 
@@ -92,8 +112,8 @@ export default function HomeDashboardPage() {
             </svg>
             <span style={{ fontSize: "0.68rem", color: "var(--text-muted)", fontWeight: 500 }}>{t.daysLeft}</span>
           </div>
-          <div style={{ fontSize: "1.5rem", fontWeight: 800, color: "var(--text)", lineHeight: 1 }}>5</div>
-          <div style={{ fontSize: "0.68rem", color: "var(--text-muted)", marginTop: 2 }}>{t.beforeFinal}</div>
+          <div style={{ fontSize: "1.5rem", fontWeight: 800, color: contestInfo.color, lineHeight: 1 }}>{contestInfo.label}</div>
+          <div style={{ fontSize: "0.68rem", color: "var(--text-muted)", marginTop: 2 }}>{contestInfo.sub}</div>
         </div>
         <div className="stat-box">
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
