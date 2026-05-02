@@ -63,12 +63,11 @@ async function initFapshi({ txRef, amount, userEmail, candidateName, votesCount 
     },
   );
 
-  // Log complet pour diagnostiquer la structure de réponse Fapshi
   logger.info("Fapshi raw response: " + JSON.stringify(response.data));
 
   const data = response.data;
 
-  // Fapshi peut retourner le lien dans différents champs selon la version de l'API
+  // Fapshi retourne le lien dans différents champs selon la version de l'API
   const paymentLink =
     data.paymentLink ||
     data.link ||
@@ -77,6 +76,7 @@ async function initFapshi({ txRef, amount, userEmail, candidateName, votesCount 
     data?.data?.link ||
     data?.data?.payment_link;
 
+  // FIX : transId peut aussi être dans data.data
   const transId =
     data.transId ||
     data.trans_id ||
@@ -104,7 +104,14 @@ async function verifyFapshi(transId) {
       },
     },
   );
+  logger.info("Fapshi verify response: " + JSON.stringify(response.data));
   return response.data;
+}
+
+// FIX : comparaison insensible à la casse
+function isFapshiSuccessful(status) {
+  if (!status) return false;
+  return String(status).toUpperCase() === "SUCCESSFUL";
 }
 
 // ─── PAYPAL ───────────────────────────────────────────────────────────────────
@@ -243,16 +250,14 @@ async function initGeniusPay({ txRef, amount, userEmail, userName, candidateName
   };
 
   const resolveCountry = (c) => {
-    if (!c) return "CI";
+    if (!c) return "CM";
     if (c.length === 2) return c.toUpperCase();
-    return COUNTRY_ISO2[c.toLowerCase().trim()] || "CI";
+    return COUNTRY_ISO2[c.toLowerCase().trim()] || "CM";
   };
 
   const countryCode = resolveCountry(country);
-
   const rawDesc = `${candidateName} - ${amount.toLocaleString("fr-FR")} FCFA`;
   const description = rawDesc.length > 500 ? rawDesc.substring(0, 497) + "..." : rawDesc;
-
   const safeUserName = (userName || "Votant").substring(0, 100);
 
   const payload = {
@@ -291,6 +296,8 @@ async function initGeniusPay({ txRef, amount, userEmail, userName, candidateName
     );
   }
 
+  logger.info("GeniusPay raw response: " + JSON.stringify(response.data));
+
   if (!response.data?.success || !response.data?.data) {
     logger.error("GeniusPay bad response:", response.data);
     throw new AppError(
@@ -307,22 +314,25 @@ async function initGeniusPay({ txRef, amount, userEmail, userName, candidateName
     throw new AppError("Impossible de récupérer le lien de paiement GeniusPay", 502);
   }
 
-  logger.info(`GeniusPay payment created: ref=${data.reference || data.id}`);
+  logger.info(`GeniusPay payment created: id=${data.id} ref=${data.reference}`);
 
   return {
     paymentLink,
+    // FIX : stocker l'ID interne ET la référence séparément
+    geniuspayId: String(data.id),
     geniuspayReference: data.reference || String(data.id),
   };
 }
 
-async function verifyGeniusPay(externalReference) {
+// FIX : utilise l'ID interne GeniusPay (plus fiable que la référence)
+async function verifyGeniusPay(geniuspayId) {
   if (!process.env.GENIUSPAY_API_KEY || !process.env.GENIUSPAY_API_SECRET) {
     throw new AppError("Clés GeniusPay non configurées", 500);
   }
 
   try {
     const response = await axios.get(
-      `${GENIUSPAY_BASE_URL}/payments/${externalReference}`,
+      `${GENIUSPAY_BASE_URL}/payments/${geniuspayId}`,
       {
         headers: {
           "X-API-Key": process.env.GENIUSPAY_API_KEY,
@@ -331,11 +341,18 @@ async function verifyGeniusPay(externalReference) {
         },
       },
     );
+    logger.info("GeniusPay verify response: " + JSON.stringify(response.data));
     return response.data?.data || null;
   } catch (err) {
     logger.error("GeniusPay verify error:", err.response?.data || err.message);
     return null;
   }
+}
+
+// FIX : insensible à la casse, couvre tous les statuts possibles
+function isGeniusPaySuccessful(status) {
+  if (!status) return false;
+  return ["completed", "successful", "success"].includes(String(status).toLowerCase());
 }
 
 // ─── GENIUSPAY SIGNATURE ──────────────────────────────────────────────────────
@@ -375,7 +392,7 @@ async function processGeniusPayWebhook(body) {
     return;
   }
 
-  logger.info(`GeniusPay webhook event: ${event}`);
+  logger.info(`GeniusPay webhook event: ${event} | data: ${JSON.stringify(eventData)}`);
 
   if (event !== "payment.success") return;
 
@@ -394,28 +411,47 @@ async function processGeniusPayWebhook(body) {
     return;
   }
 
-  if (payment.webhookReceived || payment.status !== "PENDING") {
+  // FIX : vérifier le statut AVANT de marquer webhookReceived
+  if (payment.status === "COMPLETED") {
+    logger.info(`GeniusPay webhook: déjà complété txRef=${txRef}`);
+    return;
+  }
+
+  if (payment.webhookReceived && payment.status !== "PENDING") {
     logger.info(`GeniusPay webhook: paiement déjà traité txRef=${txRef}`);
     return;
   }
 
-  await prisma.payment.update({
-    where: { id: payment.id },
-    data: {
-      webhookReceived: true,
-      flutterwaveFlwRef: eventData.reference || String(eventData.id),
-    },
-  });
+  const isSuccess = isGeniusPaySuccessful(eventData.status);
 
-  if (eventData.status === "completed") {
-    await creditVotes(payment);
-    logger.info(`GeniusPay webhook: votes crédités txRef=${txRef} votes=${payment.votesCount}`);
-  } else {
+  try {
     await prisma.payment.update({
       where: { id: payment.id },
-      data: { status: "FAILED" },
+      data: {
+        webhookReceived: true,
+        flutterwaveFlwRef: String(eventData.id || "") || payment.flutterwaveFlwRef,
+        flutterwaveTransId: eventData.reference || String(eventData.id || ""),
+      },
     });
-    logger.warn(`GeniusPay webhook: paiement échoué txRef=${txRef} status=${eventData.status}`);
+
+    if (isSuccess) {
+      await creditVotes(payment);
+      logger.info(`GeniusPay webhook: votes crédités txRef=${txRef} votes=${payment.votesCount}`);
+    } else {
+      await prisma.payment.update({
+        where: { id: payment.id },
+        data: { status: "FAILED" },
+      });
+      logger.warn(`GeniusPay webhook: paiement échoué txRef=${txRef} status=${eventData.status}`);
+    }
+  } catch (err) {
+    // FIX : reset webhookReceived si creditVotes plante → permet un retry
+    logger.error(`GeniusPay webhook: erreur lors du crédit txRef=${txRef}`, err.message);
+    await prisma.payment.update({
+      where: { id: payment.id },
+      data: { webhookReceived: false },
+    }).catch(() => {});
+    throw err;
   }
 }
 
@@ -449,7 +485,7 @@ async function initializePayment({ candidateId, amount, provider, country, voter
       status: "PENDING",
       metadata: {
         provider,
-        country: country || "CI",
+        country: country || "CM",
         candidateName: candidate.name,
         candidateType: candidate.type,
         voterName: voter.name,
@@ -476,30 +512,38 @@ async function initializePayment({ candidateId, amount, provider, country, voter
     if (provider === "fapshi") {
       const result = await initFapshi(params);
       paymentLink = result.paymentLink;
-      if (result.transId) {
-        await prisma.payment.update({
-          where: { id: payment.id },
-          data: { flutterwaveFlwRef: result.transId },
-        });
-      }
+      // FIX : stocker transId même si null — le webhook le mettra à jour
+      await prisma.payment.update({
+        where: { id: payment.id },
+        data: {
+          flutterwaveFlwRef: result.transId || null,
+          flutterwaveTransId: result.transId || null,
+        },
+      });
+
     } else if (provider === "paypal") {
       const result = await initPayPal(params);
       paymentLink = result.paymentLink;
-      if (result.orderId) {
-        await prisma.payment.update({
-          where: { id: payment.id },
-          data: { flutterwaveFlwRef: result.orderId },
-        });
-      }
+      await prisma.payment.update({
+        where: { id: payment.id },
+        data: {
+          flutterwaveFlwRef: result.orderId,
+          flutterwaveTransId: result.orderId,
+        },
+      });
+
     } else if (provider === "geniuspay") {
       const result = await initGeniusPay(params);
       paymentLink = result.paymentLink;
-      if (result.geniuspayReference) {
-        await prisma.payment.update({
-          where: { id: payment.id },
-          data: { flutterwaveFlwRef: result.geniuspayReference },
-        });
-      }
+      // FIX : flutterwaveFlwRef = ID interne (pour verifyGeniusPay)
+      //        flutterwaveTransId = référence humaine (pour traçabilité)
+      await prisma.payment.update({
+        where: { id: payment.id },
+        data: {
+          flutterwaveFlwRef: result.geniuspayId,
+          flutterwaveTransId: result.geniuspayReference,
+        },
+      });
     }
   } catch (err) {
     await prisma.payment.update({
@@ -551,19 +595,26 @@ async function verifyPayment(txRef) {
 
     if (provider === "fapshi") {
       const transId = payment.flutterwaveFlwRef;
-      if (!transId) return { status: "PENDING", message: "En attente de confirmation" };
+      if (!transId) {
+        // FIX : si transId manque, on attend le webhook — on ne peut pas vérifier
+        logger.warn(`Fapshi verify: transId manquant pour txRef=${txRef}, attente webhook`);
+        return { status: "PENDING", message: "En attente de confirmation Fapshi" };
+      }
       const result = await verifyFapshi(transId);
-      success = result.status === "SUCCESSFUL";
+      success = isFapshiSuccessful(result.status);
+
     } else if (provider === "paypal") {
       const orderId = payment.flutterwaveFlwRef;
       if (!orderId) return { status: "PENDING", message: "En attente PayPal" };
       const result = await verifyPayPal(orderId);
       success = result.success === true;
+
     } else if (provider === "geniuspay") {
-      const externalReference = payment.flutterwaveFlwRef;
-      if (!externalReference) return { status: "PENDING", message: "En attente GeniusPay" };
-      const result = await verifyGeniusPay(externalReference);
-      success = result?.status === "completed";
+      const geniuspayId = payment.flutterwaveFlwRef;
+      if (!geniuspayId) return { status: "PENDING", message: "En attente GeniusPay" };
+      const result = await verifyGeniusPay(geniuspayId);
+      // FIX : utilise la fonction insensible à la casse
+      success = isGeniusPaySuccessful(result?.status);
     }
 
     if (success) {
@@ -592,27 +643,70 @@ async function verifyPayment(txRef) {
 // ─── FAPSHI WEBHOOK ───────────────────────────────────────────────────────────
 
 async function processFapshiWebhook(body) {
-  const { externalId: txRef, status, transId } = body;
-  if (!txRef) return;
+  logger.info("Fapshi webhook received: " + JSON.stringify(body));
+
+  // FIX : Fapshi peut envoyer externalId ou external_id selon la version
+  const txRef = body.externalId || body.external_id;
+  const status = body.status;
+  // FIX : Fapshi peut envoyer transId ou trans_id
+  const transId = body.transId || body.trans_id;
+
+  if (!txRef) {
+    logger.warn("Fapshi webhook: txRef (externalId) manquant dans le body");
+    return;
+  }
 
   const payment = await prisma.payment.findUnique({
     where: { flutterwaveTxRef: txRef },
   });
-  if (!payment || payment.webhookReceived || payment.status !== "PENDING") return;
+
+  if (!payment) {
+    logger.warn(`Fapshi webhook: paiement introuvable pour txRef=${txRef}`);
+    return;
+  }
+
+  if (payment.status === "COMPLETED") {
+    logger.info(`Fapshi webhook: déjà complété txRef=${txRef}`);
+    return;
+  }
+
+  if (payment.webhookReceived && payment.status !== "PENDING") {
+    logger.info(`Fapshi webhook: déjà traité txRef=${txRef}`);
+    return;
+  }
+
+  // FIX : mettre à jour transId si disponible (au cas où il manquait à l'init)
+  const updateData = { webhookReceived: true };
+  if (transId) {
+    updateData.flutterwaveFlwRef = transId;
+    updateData.flutterwaveTransId = transId;
+  }
 
   await prisma.payment.update({
     where: { id: payment.id },
-    data: { webhookReceived: true, flutterwaveFlwRef: transId },
+    data: updateData,
   });
 
-  if (status === "SUCCESSFUL") {
-    await creditVotes(payment);
-    logger.info(`Fapshi webhook: votes crédités txRef=${txRef}`);
+  // FIX : comparaison insensible à la casse
+  if (isFapshiSuccessful(status)) {
+    try {
+      await creditVotes(payment);
+      logger.info(`Fapshi webhook: votes crédités txRef=${txRef} votes=${payment.votesCount}`);
+    } catch (err) {
+      // FIX : reset webhookReceived pour permettre un retry
+      logger.error(`Fapshi webhook: erreur crédit txRef=${txRef}`, err.message);
+      await prisma.payment.update({
+        where: { id: payment.id },
+        data: { webhookReceived: false },
+      }).catch(() => {});
+      throw err;
+    }
   } else {
     await prisma.payment.update({
       where: { id: payment.id },
       data: { status: "FAILED" },
     });
+    logger.warn(`Fapshi webhook: paiement non réussi txRef=${txRef} status=${status}`);
   }
 }
 
@@ -620,12 +714,16 @@ async function processFapshiWebhook(body) {
 
 async function creditVotes(payment) {
   const credited = await prisma.$transaction(async (tx) => {
+    // Idempotence : si status n'est plus PENDING, count=0 → on skip sans erreur
     const result = await tx.payment.updateMany({
       where: { id: payment.id, status: "PENDING" },
       data: { status: "COMPLETED" },
     });
 
-    if (result.count === 0) return false;
+    if (result.count === 0) {
+      logger.warn(`creditVotes: paiement ${payment.id} déjà traité (count=0), skip`);
+      return false;
+    }
 
     await tx.vote.create({
       data: {
@@ -641,6 +739,7 @@ async function creditVotes(payment) {
       data: { totalVotes: { increment: payment.votesCount } },
     });
 
+    logger.info(`creditVotes OK: ${payment.votesCount} votes → candidat ${payment.candidateId}`);
     return true;
   });
 
