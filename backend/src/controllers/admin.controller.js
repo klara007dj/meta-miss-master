@@ -126,7 +126,7 @@ class AdminController {
 
   async updateContest(req, res, next) {
     try {
-      const id = parseInt(req.params.id);
+      const id = req.params.id; // CUID string, pas un entier
       const contest = await contestService.updateContest(id, req.body);
       res.json({ success: true, data: contest });
     } catch (err) { next(err); }
@@ -155,8 +155,7 @@ class AdminController {
     try {
       const { PrismaClient } = require("@prisma/client");
       const prisma = new PrismaClient();
-      const id = parseInt(req.params.id);
-      // Protéger l'admin de se supprimer lui-même
+      const id = req.params.id; // CUID string
       if (req.user.id === id) return res.status(400).json({ success: false, message: "Vous ne pouvez pas vous supprimer vous-même." });
       await prisma.user.delete({ where: { id } });
       res.json({ success: true, message: "Utilisateur supprimé" });
@@ -167,7 +166,7 @@ class AdminController {
     try {
       const { PrismaClient } = require("@prisma/client");
       const prisma = new PrismaClient();
-      const id = parseInt(req.params.id);
+      const id = req.params.id; // CUID string
       const { name, email, role } = req.body;
       const user = await prisma.user.update({
         where: { id },
