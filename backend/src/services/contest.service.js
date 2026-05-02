@@ -20,8 +20,12 @@ async function openContest(id) {
   return prisma.contest.update({ where: { id }, data: { status: "OPEN" } });
 }
 
+async function getAll() {
+  return prisma.contest.findMany({ orderBy: { createdAt: "desc" } });
+}
+
 async function getActive() {
   return prisma.contest.findFirst({ where: { status: "OPEN" }, orderBy: { createdAt: "desc" } });
 }
 
-module.exports = { create, closeContest, openContest, getActive };
+module.exports = { create, closeContest, openContest, getActive, getAll };
