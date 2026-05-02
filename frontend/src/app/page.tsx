@@ -1,18 +1,36 @@
 "use client";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuthStore } from "@/store/authStore";
+import api from "@/lib/api";
 
 export default function SplashPage() {
   const router = useRouter();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const [contest, setContest] = useState<any>(null);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      router.replace("/home");
-    }
+    if (isAuthenticated) { router.replace("/home"); return; }
+    api.get("/contest/active").then((r) => setContest(r.data.data)).catch(() => {});
   }, [isAuthenticated, router]);
+
+  const contestInfo = (() => {
+    if (!contest) return { label: "—", sub: "Jours restants", color: "#2563EB" };
+    const now = new Date();
+    const start = new Date(contest.startDate);
+    const end = contest.endDate ? new Date(contest.endDate) : null;
+    if (now < start) {
+      const diff = Math.ceil((start.getTime() - now.getTime()) / 86400000);
+      return { label: diff, sub: `Début dans ${diff}j`, color: "#F59E0B" };
+    }
+    if (end) {
+      const diff = Math.ceil((end.getTime() - now.getTime()) / 86400000);
+      if (diff <= 0) return { label: "Terminé", sub: "Concours clôturé", color: "#94A3B8" };
+      return { label: diff, sub: "Jours restants", color: "#2563EB" };
+    }
+    return { label: "∞", sub: "Sans date de fin", color: "#10B981" };
+  })();
 
   return (
     <div style={{
@@ -88,8 +106,8 @@ export default function SplashPage() {
           </div>
           <div style={{ width: 1, background: "var(--blue-mid)" }} />
           <div style={{ textAlign: "center" }}>
-            <div style={{ fontSize: "1.2rem", fontWeight: 800, color: "#2563EB" }}>5</div>
-            <div style={{ fontSize: "0.65rem", color: "var(--text-muted)", fontWeight: 500 }}>Jours restants</div>
+            <div style={{ fontSize: "1.2rem", fontWeight: 800, color: contestInfo.color }}>{contestInfo.label}</div>
+            <div style={{ fontSize: "0.65rem", color: "var(--text-muted)", fontWeight: 500 }}>{contestInfo.sub}</div>
           </div>
         </div>
       </div>
