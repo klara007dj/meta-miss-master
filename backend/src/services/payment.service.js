@@ -63,11 +63,20 @@ async function initFapshi({ txRef, amount, userEmail, candidateName, votesCount 
     },
   );
 
-  if (response.data.statusCode !== 200 && !response.data.paymentLink) {
+  // Fapshi retourne statusCode comme string "200" ou number 200 selon les versions
+  const statusOk = response.data.statusCode == 200 || String(response.data.statusCode) === "200";
+  if (!statusOk && !response.data.paymentLink) {
     throw new AppError(`Erreur Fapshi: ${response.data.message || "Inconnue"}`, 502);
   }
 
-  return { paymentLink: response.data.paymentLink, transId: response.data.transId };
+  const paymentLink = response.data.paymentLink || response.data.link;
+  const transId = response.data.transId || response.data.trans_id;
+
+  if (!paymentLink) {
+    throw new AppError(`Fapshi: lien de paiement absent dans la réponse`, 502);
+  }
+
+  return { paymentLink, transId };
 }
 
 async function verifyFapshi(transId) {
