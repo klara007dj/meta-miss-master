@@ -36,6 +36,13 @@ export default function AdminPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
 
+  // ─── Contest state ──────────────────────────────────────────────────────────
+  const [contests, setContests] = useState<any[]>([]);
+  const [contestLoading, setContestLoading] = useState(false);
+  const [showCreateContest, setShowCreateContest] = useState(false);
+  const [newContest, setNewContest] = useState({ name: "", startDate: "", endDate: "" });
+  const [contestSaving, setContestSaving] = useState(false);
+
   const apiBase = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api").replace("/api", "");
 
   useEffect(() => {
@@ -56,6 +63,11 @@ export default function AdminPage() {
       setCandidates(c.data.data.candidates || []);
       setPayments(p.data.data.payments || []);
       setUsers(u.data.data.users || []);
+      // Charger les contests séparément (pas bloquant)
+      try {
+        const ct = await api.get("/admin/contests");
+        setContests(ct.data.data || []);
+      } catch { setContests([]); }
     } catch { toast.error("Erreur chargement"); }
     setLoading(false);
   };
@@ -338,9 +350,93 @@ export default function AdminPage() {
 
             {/* ─── Contests ────────────────────────────────────────────────── */}
             {tab === "contests" && (
-              <div style={{ background: "#fff", borderRadius: 20, border: "1px solid #E2E8F0", padding: 28 }}>
-                <div style={{ fontWeight: 700, color: "#0F172A", fontSize: 15 }}>Gestion des concours</div>
-                <p style={{ marginTop: 10, color: "#94A3B8", fontSize: 14 }}>Ouvrez ou fermez un concours et suivez les dates de participation.</p>
+              <div style={{ display: "grid", gap: 16 }}>
+
+                {/* Header + bouton créer */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+                  <div>
+                    <div style={{ fontWeight: 800, color: "#0F172A", fontSize: 16 }}>Concours</div>
+                    <div style={{ color: "#94A3B8", fontSize: 13, marginTop: 2 }}>{contests.length} concours enregistré{contests.length > 1 ? "s" : ""}</div>
+                  </div>
+                  <button type="button" onClick={() => setShowCreateContest(true)}
+                    style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 18px", borderRadius: 14, background: "linear-gradient(135deg,#6366F1,#8B5CF6)", color: "#fff", border: "none", cursor: "pointer", fontWeight: 700, fontSize: 14, boxShadow: "0 4px 20px #6366F130" }}>
+                    <Plus size={16} /> Nouveau concours
+                  </button>
+                </div>
+
+                {/* Liste des concours */}
+                {contestLoading ? (
+                  <div style={{ textAlign: "center", padding: 40, color: "#94A3B8" }}>Chargement...</div>
+                ) : contests.length === 0 ? (
+                  <div style={{ background: "#fff", borderRadius: 20, border: "2px dashed #E2E8F0", padding: "48px 24px", textAlign: "center" }}>
+                    <Trophy size={40} color="#CBD5E1" style={{ margin: "0 auto 16px" }} />
+                    <div style={{ fontWeight: 700, color: "#0F172A", fontSize: 15 }}>Aucun concours créé</div>
+                    <p style={{ color: "#94A3B8", fontSize: 13, marginTop: 8 }}>Créez votre premier concours pour activer les votes.</p>
+                    <button type="button" onClick={() => setShowCreateContest(true)}
+                      style={{ marginTop: 16, padding: "10px 24px", borderRadius: 12, background: "linear-gradient(135deg,#6366F1,#8B5CF6)", color: "#fff", border: "none", cursor: "pointer", fontWeight: 700, fontSize: 13 }}>
+                      + Créer un concours
+                    </button>
+                  </div>
+                ) : (
+                  contests.map((ct: any) => {
+                    const isOpen = ct.status === "OPEN";
+                    return (
+                      <div key={ct.id} style={{ background: "#fff", borderRadius: 20, border: `1.5px solid ${isOpen ? "#10B98130" : "#E2E8F0"}`, padding: "20px 24px", position: "relative", overflow: "hidden" }}>
+                        {isOpen && <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: "linear-gradient(90deg,#10B981,#34D399)" }} />}
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                              <div style={{ fontWeight: 800, color: "#0F172A", fontSize: 16 }}>{ct.name}</div>
+                              <span style={{ padding: "3px 12px", borderRadius: 100, fontSize: 11, fontWeight: 700, background: isOpen ? "#10B98118" : "#64748B18", color: isOpen ? "#10B981" : "#64748B", border: `1px solid ${isOpen ? "#10B98130" : "#64748B30"}` }}>
+                                {isOpen ? "● OUVERT" : "● FERMÉ"}
+                              </span>
+                            </div>
+                            <div style={{ marginTop: 12, display: "flex", flexWrap: "wrap", gap: 16 }}>
+                              <div style={{ fontSize: 13 }}>
+                                <span style={{ color: "#94A3B8" }}>Début : </span>
+                                <span style={{ fontWeight: 600, color: "#0F172A" }}>{ct.startDate ? new Date(ct.startDate).toLocaleDateString("fr-FR") : "—"}</span>
+                              </div>
+                              <div style={{ fontSize: 13 }}>
+                                <span style={{ color: "#94A3B8" }}>Fin : </span>
+                                <span style={{ fontWeight: 600, color: "#0F172A" }}>{ct.endDate ? new Date(ct.endDate).toLocaleDateString("fr-FR") : "Indéfinie"}</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+                            {isOpen ? (
+                              <button type="button"
+                                onClick={async () => {
+                                  if (!confirm("Fermer ce concours ? Les votes seront désactivés.")) return;
+                                  try {
+                                    await api.patch(`/admin/contest/${ct.id}/close`);
+                                    toast.success("Concours fermé");
+                                    const res = await api.get("/admin/contests");
+                                    setContests(res.data.data || []);
+                                  } catch { toast.error("Erreur"); }
+                                }}
+                                style={{ padding: "9px 18px", borderRadius: 12, border: "1.5px solid #EF444430", background: "#EF444410", color: "#EF4444", cursor: "pointer", fontWeight: 700, fontSize: 13 }}>
+                                Fermer
+                              </button>
+                            ) : (
+                              <button type="button"
+                                onClick={async () => {
+                                  try {
+                                    await api.patch(`/admin/contest/${ct.id}/open`);
+                                    toast.success("Concours ouvert ✓");
+                                    const res = await api.get("/admin/contests");
+                                    setContests(res.data.data || []);
+                                  } catch { toast.error("Erreur"); }
+                                }}
+                                style={{ padding: "9px 18px", borderRadius: 12, border: "1.5px solid #10B98130", background: "#10B98110", color: "#10B981", cursor: "pointer", fontWeight: 700, fontSize: 13 }}>
+                                Ouvrir
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
               </div>
             )}
 
@@ -477,6 +573,66 @@ export default function AdminPage() {
               <button type="button" className="btn-blue" onClick={saveCandidate} disabled={saving}
                 style={{ marginTop: 6, background: "linear-gradient(135deg,#6366F1,#8B5CF6)", fontSize: "0.9rem", padding: "14px" }}>
                 {saving ? "Enregistrement..." : isCreating ? "✓ Créer le candidat" : "✓ Enregistrer les modifications"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Modal création concours ────────────────────────────────────────── */}
+      {showCreateContest && (
+        <div className="modal-backdrop" onClick={() => setShowCreateContest(false)}>
+          <div className="modal-sheet" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 440 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: "1.1rem", fontWeight: 800 }}>Nouveau concours</h3>
+                <p style={{ margin: "4px 0 0", color: "#94A3B8", fontSize: "0.8rem" }}>Le concours sera créé avec le statut OUVERT</p>
+              </div>
+              <button type="button" onClick={() => setShowCreateContest(false)} style={{ border: "none", background: "transparent", cursor: "pointer", color: "#94A3B8", fontSize: "1.3rem" }}>×</button>
+            </div>
+            <div style={{ display: "grid", gap: 12 }}>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: "#64748B", display: "block", marginBottom: 6 }}>Nom du concours *</label>
+                <input type="text" value={newContest.name} onChange={(e) => setNewContest({ ...newContest, name: e.target.value })}
+                  placeholder="Ex: Meta Miss 2026" className="admin-input" />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: "#64748B", display: "block", marginBottom: 6 }}>Date de début *</label>
+                <input type="date" value={newContest.startDate} onChange={(e) => setNewContest({ ...newContest, startDate: e.target.value })}
+                  className="admin-input" />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: "#64748B", display: "block", marginBottom: 6 }}>Date de fin <span style={{ color: "#94A3B8", fontWeight: 400 }}>(optionnelle)</span></label>
+                <input type="date" value={newContest.endDate} onChange={(e) => setNewContest({ ...newContest, endDate: e.target.value })}
+                  className="admin-input" />
+              </div>
+              <div style={{ marginTop: 4, padding: "12px 16px", borderRadius: 12, background: "#F0FDF4", border: "1px solid #BBF7D0" }}>
+                <div style={{ fontSize: 12, color: "#16A34A", fontWeight: 600 }}>ℹ️ Le concours sera immédiatement ouvert</div>
+                <div style={{ fontSize: 12, color: "#4ADE80", marginTop: 2 }}>Les votes seront activés dès la création.</div>
+              </div>
+              <button type="button" className="btn-blue"
+                disabled={contestSaving || !newContest.name || !newContest.startDate}
+                onClick={async () => {
+                  if (!newContest.name.trim() || !newContest.startDate) { toast.error("Nom et date de début requis"); return; }
+                  setContestSaving(true);
+                  try {
+                    await api.post("/admin/contest", {
+                      name: newContest.name.trim(),
+                      startDate: newContest.startDate,
+                      ...(newContest.endDate && { endDate: newContest.endDate }),
+                    });
+                    toast.success("Concours créé et ouvert ✓");
+                    setShowCreateContest(false);
+                    setNewContest({ name: "", startDate: "", endDate: "" });
+                    const res = await api.get("/admin/contests");
+                    setContests(res.data.data || []);
+                  } catch (err: any) {
+                    toast.error(err?.response?.data?.message || "Erreur lors de la création");
+                  }
+                  setContestSaving(false);
+                }}
+                style={{ marginTop: 4, background: "linear-gradient(135deg,#6366F1,#8B5CF6)", fontSize: "0.9rem", padding: "14px", opacity: (!newContest.name || !newContest.startDate) ? 0.5 : 1 }}>
+                {contestSaving ? "Création..." : "✓ Créer le concours"}
               </button>
             </div>
           </div>
