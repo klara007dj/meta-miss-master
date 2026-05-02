@@ -124,6 +124,14 @@ class AdminController {
     } catch (err) { next(err); }
   }
 
+  async updateContest(req, res, next) {
+    try {
+      const id = parseInt(req.params.id);
+      const contest = await contestService.updateContest(id, req.body);
+      res.json({ success: true, data: contest });
+    } catch (err) { next(err); }
+  }
+
   // ── Dashboard stats ──────────────────────────────────────
 
   async getDashboardStats(req, res, next) {
@@ -140,6 +148,32 @@ class AdminController {
       const { page = 1, limit = 20 } = req.query;
       const result = await adminService.getAllUsers({ page: +page, limit: +limit });
       res.json({ success: true, data: result });
+    } catch (err) { next(err); }
+  }
+
+  async deleteUser(req, res, next) {
+    try {
+      const { PrismaClient } = require("@prisma/client");
+      const prisma = new PrismaClient();
+      const id = parseInt(req.params.id);
+      // Protéger l'admin de se supprimer lui-même
+      if (req.user.id === id) return res.status(400).json({ success: false, message: "Vous ne pouvez pas vous supprimer vous-même." });
+      await prisma.user.delete({ where: { id } });
+      res.json({ success: true, message: "Utilisateur supprimé" });
+    } catch (err) { next(err); }
+  }
+
+  async updateUser(req, res, next) {
+    try {
+      const { PrismaClient } = require("@prisma/client");
+      const prisma = new PrismaClient();
+      const id = parseInt(req.params.id);
+      const { name, email, role } = req.body;
+      const user = await prisma.user.update({
+        where: { id },
+        data: { ...(name && { name }), ...(email && { email }), ...(role && { role }) },
+      });
+      res.json({ success: true, data: user });
     } catch (err) { next(err); }
   }
 
