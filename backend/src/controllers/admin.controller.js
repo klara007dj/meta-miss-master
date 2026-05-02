@@ -115,7 +115,7 @@ class AdminController {
       const contests = await contestService.getAll();
       res.json({ success: true, data: contests });
     } catch (err) { next(err); }
-  },
+  }
 
   async createContest(req, res, next) {
     try {
