@@ -63,17 +63,32 @@ async function initFapshi({ txRef, amount, userEmail, candidateName, votesCount 
     },
   );
 
-  // Fapshi retourne statusCode comme string "200" ou number 200 selon les versions
-  const statusOk = response.data.statusCode == 200 || String(response.data.statusCode) === "200";
-  if (!statusOk && !response.data.paymentLink) {
-    throw new AppError(`Erreur Fapshi: ${response.data.message || "Inconnue"}`, 502);
-  }
+  // Log complet pour diagnostiquer la structure de réponse Fapshi
+  logger.info("Fapshi raw response: " + JSON.stringify(response.data));
 
-  const paymentLink = response.data.paymentLink || response.data.link;
-  const transId = response.data.transId || response.data.trans_id;
+  const data = response.data;
+
+  // Fapshi peut retourner le lien dans différents champs selon la version de l'API
+  const paymentLink =
+    data.paymentLink ||
+    data.link ||
+    data.payment_link ||
+    data?.data?.paymentLink ||
+    data?.data?.link ||
+    data?.data?.payment_link;
+
+  const transId =
+    data.transId ||
+    data.trans_id ||
+    data?.data?.transId ||
+    data?.data?.trans_id;
 
   if (!paymentLink) {
-    throw new AppError(`Fapshi: lien de paiement absent dans la réponse`, 502);
+    logger.error("Fapshi response sans paymentLink: " + JSON.stringify(data));
+    throw new AppError(
+      `Fapshi n'a pas retourné de lien de paiement. Message: ${data.message || "Inconnu"}`,
+      502
+    );
   }
 
   return { paymentLink, transId };
@@ -204,7 +219,6 @@ async function initGeniusPay({ txRef, amount, userEmail, userName, candidateName
     throw new AppError("Montant minimum pour GeniusPay : 200 FCFA (2 votes)", 400);
   }
 
-  // Mapper les noms de pays vers les codes ISO2 attendus par GeniusPay
   const COUNTRY_ISO2 = {
     "cameroun": "CM", "cameroon": "CM",
     "côte d'ivoire": "CI", "cote d'ivoire": "CI", "cote divoire": "CI", "ivory coast": "CI",
@@ -230,17 +244,15 @@ async function initGeniusPay({ txRef, amount, userEmail, userName, candidateName
 
   const resolveCountry = (c) => {
     if (!c) return "CI";
-    if (c.length === 2) return c.toUpperCase(); // déjà un code ISO2
+    if (c.length === 2) return c.toUpperCase();
     return COUNTRY_ISO2[c.toLowerCase().trim()] || "CI";
   };
 
   const countryCode = resolveCountry(country);
 
-  // description max 500 chars selon la doc GeniusPay
   const rawDesc = `${candidateName} - ${amount.toLocaleString("fr-FR")} FCFA`;
   const description = rawDesc.length > 500 ? rawDesc.substring(0, 497) + "..." : rawDesc;
 
-  // customer.name max 100 chars
   const safeUserName = (userName || "Votant").substring(0, 100);
 
   const payload = {
@@ -336,17 +348,13 @@ function verifyGeniusPaySignature({ signature, timestamp, body }) {
   }
 
   try {
-    // Le body est un Buffer (express.raw) — on le convertit en string
     const rawBody = Buffer.isBuffer(body) ? body.toString("utf8") : JSON.stringify(body);
-
-    // Format GeniusPay : HMAC-SHA256(timestamp + "." + json_payload, secret)
     const data = `${timestamp}.${rawBody}`;
     const expected = crypto
       .createHmac("sha256", secret)
       .update(data)
       .digest("hex");
 
-    // Comparaison à temps constant pour éviter les timing attacks
     return crypto.timingSafeEqual(
       Buffer.from(expected, "hex"),
       Buffer.from(signature, "hex")
@@ -369,7 +377,6 @@ async function processGeniusPayWebhook(body) {
 
   logger.info(`GeniusPay webhook event: ${event}`);
 
-  // On traite uniquement payment.success
   if (event !== "payment.success") return;
 
   const txRef = eventData?.metadata?.txRef;
@@ -495,7 +502,6 @@ async function initializePayment({ candidateId, amount, provider, country, voter
       }
     }
   } catch (err) {
-    // Marquer comme échoué si l'init plante
     await prisma.payment.update({
       where: { id: payment.id },
       data: { status: "FAILED" },
