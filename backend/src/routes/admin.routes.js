@@ -17,6 +17,7 @@ router.get("/payments", adminController.getAllPayments);
 router.post("/payments/:id/refund", adminController.refundPayment);
 router.get("/users", adminController.getAllUsers);
 router.delete("/votes/:id", adminController.deleteVote);
+router.get("/contests", adminController.getContests);
 router.post("/contest", adminController.createContest);
 router.patch("/contest/:id/close", adminController.closeVotes);
 router.patch("/contest/:id/open", adminController.openVotes);
