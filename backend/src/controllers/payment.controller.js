@@ -12,10 +12,11 @@ class PaymentController {
 
       const { candidateId, amount, provider, country, voterName, voterEmail, voterPhone } = req.body;
 
-      if (amount < 100) {
+      const minAmount = provider === "geniuspay" ? 200 : 100;
+      if (amount < minAmount) {
         return res.status(400).json({
           success: false,
-          message: "Montant minimum : 100 FCFA (1 vote)",
+          message: `Montant minimum : ${minAmount} FCFA${provider === "geniuspay" ? " (2 votes minimum avec GeniusPay)" : " (1 vote)"}`,
         });
       }
 
@@ -57,7 +58,6 @@ class PaymentController {
 
   async webhookGeniusPay(req, res) {
     try {
-      // Vérification de la signature HMAC-SHA256
       const signature = req.headers["x-webhook-signature"];
       const timestamp = req.headers["x-webhook-timestamp"];
       const event = req.headers["x-webhook-event"];
@@ -67,18 +67,16 @@ class PaymentController {
         return res.status(401).json({ message: "Headers manquants" });
       }
 
-      // Vérifier que le webhook n'est pas trop vieux (5 minutes)
       const now = Math.floor(Date.now() / 1000);
       if (Math.abs(now - parseInt(timestamp)) > 300) {
         logger.warn("GeniusPay webhook: timestamp trop vieux");
         return res.status(400).json({ message: "Timestamp expiré" });
       }
 
-      // Vérifier la signature
       const isValid = paymentService.verifyGeniusPaySignature({
         signature,
         timestamp,
-        body: req.body, // raw body
+        body: req.body,
       });
 
       if (!isValid) {
@@ -86,7 +84,6 @@ class PaymentController {
         return res.status(401).json({ message: "Signature invalide" });
       }
 
-      // Parser le body (il est raw ici)
       const parsedBody = typeof req.body === "string"
         ? JSON.parse(req.body)
         : req.body;
