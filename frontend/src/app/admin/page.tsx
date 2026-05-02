@@ -42,6 +42,13 @@ export default function AdminPage() {
   const [showCreateContest, setShowCreateContest] = useState(false);
   const [newContest, setNewContest] = useState({ name: "", startDate: "", endDate: "" });
   const [contestSaving, setContestSaving] = useState(false);
+  const [editingContest, setEditingContest] = useState<any>(null);
+  const [editContestValues, setEditContestValues] = useState({ name: "", startDate: "", endDate: "" });
+  const [editContestSaving, setEditContestSaving] = useState(false);
+  // ─── User state ─────────────────────────────────────────────────────────────
+  const [editingUser, setEditingUser] = useState<any>(null);
+  const [editUserValues, setEditUserValues] = useState({ name: "", email: "", role: "" });
+  const [editUserSaving, setEditUserSaving] = useState(false);
 
   const apiBase = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api").replace("/api", "");
 
@@ -402,7 +409,19 @@ export default function AdminPage() {
                               </div>
                             </div>
                           </div>
-                          <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+                          <div style={{ display: "flex", gap: 8, flexShrink: 0, flexWrap: "wrap" }}>
+                            <button type="button" title="Modifier"
+                              onClick={() => {
+                                setEditingContest(ct);
+                                setEditContestValues({
+                                  name: ct.name,
+                                  startDate: ct.startDate ? new Date(ct.startDate).toISOString().split("T")[0] : "",
+                                  endDate: ct.endDate ? new Date(ct.endDate).toISOString().split("T")[0] : "",
+                                });
+                              }}
+                              style={{ padding: "9px 14px", borderRadius: 12, border: "1.5px solid #6366F130", background: "#6366F110", color: "#6366F1", cursor: "pointer", fontWeight: 700, fontSize: 13 }}>
+                              ✏️ Modifier
+                            </button>
                             {isOpen ? (
                               <button type="button"
                                 onClick={async () => {
@@ -414,7 +433,7 @@ export default function AdminPage() {
                                     setContests(res.data.data || []);
                                   } catch { toast.error("Erreur"); }
                                 }}
-                                style={{ padding: "9px 18px", borderRadius: 12, border: "1.5px solid #EF444430", background: "#EF444410", color: "#EF4444", cursor: "pointer", fontWeight: 700, fontSize: 13 }}>
+                                style={{ padding: "9px 14px", borderRadius: 12, border: "1.5px solid #EF444430", background: "#EF444410", color: "#EF4444", cursor: "pointer", fontWeight: 700, fontSize: 13 }}>
                                 Fermer
                               </button>
                             ) : (
@@ -427,7 +446,7 @@ export default function AdminPage() {
                                     setContests(res.data.data || []);
                                   } catch { toast.error("Erreur"); }
                                 }}
-                                style={{ padding: "9px 18px", borderRadius: 12, border: "1.5px solid #10B98130", background: "#10B98110", color: "#10B981", cursor: "pointer", fontWeight: 700, fontSize: 13 }}>
+                                style={{ padding: "9px 14px", borderRadius: 12, border: "1.5px solid #10B98130", background: "#10B98110", color: "#10B981", cursor: "pointer", fontWeight: 700, fontSize: 13 }}>
                                 Ouvrir
                               </button>
                             )}
@@ -443,16 +462,41 @@ export default function AdminPage() {
             {/* ─── Users ───────────────────────────────────────────────────── */}
             {tab === "users" && (
               <div style={{ display: "grid", gap: 12 }}>
-                <div style={{ fontWeight: 700, color: "#0F172A", fontSize: 16 }}>Utilisateurs <span style={{ color: "#94A3B8", fontWeight: 400 }}>({users.length})</span></div>
+                <div style={{ fontWeight: 800, color: "#0F172A", fontSize: 16 }}>
+                  Utilisateurs <span style={{ color: "#94A3B8", fontWeight: 400 }}>({users.length})</span>
+                </div>
                 {users.map((u) => (
-                  <div key={u.id} style={{ background: "#fff", borderRadius: 20, border: "1px solid #E2E8F0", padding: "16px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
-                    <div>
-                      <div style={{ fontWeight: 700, color: "#0F172A", fontSize: 14 }}>{u.name}</div>
-                      <div style={{ marginTop: 3, fontSize: 13, color: "#94A3B8" }}>{u.email}</div>
-                    </div>
-                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
-                      <span style={{ padding: "3px 10px", borderRadius: 100, background: "#6366F118", color: "#6366F1", fontSize: 12, fontWeight: 700 }}>{u.role}</span>
-                      <span style={{ fontSize: 12, color: "#94A3B8" }}>{new Date(u.createdAt).toLocaleDateString("fr-FR")}</span>
+                  <div key={u.id} style={{ background: "#fff", borderRadius: 20, border: "1px solid #E2E8F0", padding: "16px 20px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 10 }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 700, color: "#0F172A", fontSize: 14 }}>{u.name}</div>
+                        <div style={{ marginTop: 2, fontSize: 13, color: "#94A3B8" }}>{u.email}</div>
+                        <div style={{ marginTop: 6, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                          <span style={{ padding: "2px 10px", borderRadius: 100, background: u.role === "ADMIN" ? "#EF444418" : "#6366F118", color: u.role === "ADMIN" ? "#EF4444" : "#6366F1", fontSize: 11, fontWeight: 700 }}>{u.role}</span>
+                          <span style={{ fontSize: 12, color: "#94A3B8" }}>Inscrit le {new Date(u.createdAt).toLocaleDateString("fr-FR")}</span>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: "#2563EB" }}>🗳 {u.totalVotes ?? u._count?.votes ?? 0} votes</span>
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button type="button" title="Modifier"
+                          onClick={() => { setEditingUser(u); setEditUserValues({ name: u.name || "", email: u.email || "", role: u.role || "USER" }); }}
+                          style={{ width: 36, height: 36, borderRadius: 10, border: "1px solid #E2E8F0", background: "#F8FAFF", cursor: "pointer", display: "grid", placeItems: "center" }}>
+                          <Edit3 size={15} color="#6366F1" />
+                        </button>
+                        <button type="button" title="Supprimer"
+                          onClick={async () => {
+                            if (!confirm(`Supprimer ${u.name} ? Cette action est irréversible.`)) return;
+                            try {
+                              await api.delete(`/admin/users/${u.id}`);
+                              toast.success("Utilisateur supprimé");
+                              const res = await api.get("/admin/users?limit=50");
+                              setUsers(res.data.data.users || []);
+                            } catch { toast.error("Erreur lors de la suppression"); }
+                          }}
+                          style={{ width: 36, height: 36, borderRadius: 10, border: "1px solid #FEE2E2", background: "#FFF5F5", cursor: "pointer", display: "grid", placeItems: "center" }}>
+                          <Trash2 size={15} color="#EF4444" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -573,6 +617,111 @@ export default function AdminPage() {
               <button type="button" className="btn-blue" onClick={saveCandidate} disabled={saving}
                 style={{ marginTop: 6, background: "linear-gradient(135deg,#6366F1,#8B5CF6)", fontSize: "0.9rem", padding: "14px" }}>
                 {saving ? "Enregistrement..." : isCreating ? "✓ Créer le candidat" : "✓ Enregistrer les modifications"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Modal modifier utilisateur ──────────────────────────────────────── */}
+      {editingUser && (
+        <div className="modal-backdrop" onClick={() => setEditingUser(null)}>
+          <div className="modal-sheet" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 400 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: "1.1rem", fontWeight: 800 }}>Modifier l'utilisateur</h3>
+                <p style={{ margin: "4px 0 0", color: "#94A3B8", fontSize: "0.8rem" }}>ID #{editingUser.id}</p>
+              </div>
+              <button type="button" onClick={() => setEditingUser(null)} style={{ border: "none", background: "transparent", cursor: "pointer", color: "#94A3B8", fontSize: "1.3rem" }}>×</button>
+            </div>
+            <div style={{ display: "grid", gap: 12 }}>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: "#64748B", display: "block", marginBottom: 6 }}>Nom</label>
+                <input type="text" value={editUserValues.name} onChange={(e) => setEditUserValues({ ...editUserValues, name: e.target.value })} className="admin-input" />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: "#64748B", display: "block", marginBottom: 6 }}>Email</label>
+                <input type="email" value={editUserValues.email} onChange={(e) => setEditUserValues({ ...editUserValues, email: e.target.value })} className="admin-input" />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: "#64748B", display: "block", marginBottom: 6 }}>Rôle</label>
+                <select value={editUserValues.role} onChange={(e) => setEditUserValues({ ...editUserValues, role: e.target.value })}
+                  style={{ width: "100%", padding: "12px 14px", borderRadius: 12, border: "1.5px solid #E2E8F0", fontSize: 14, background: "#F8FAFF", outline: "none", cursor: "pointer" }}>
+                  <option value="USER">USER</option>
+                  <option value="ADMIN">ADMIN</option>
+                </select>
+              </div>
+              <div style={{ padding: "10px 14px", borderRadius: 10, background: "#F8FAFF", border: "1px solid #E2E8F0", fontSize: 12, color: "#64748B" }}>
+                🗳 Votes effectués : <strong>{editingUser.totalVotes ?? editingUser._count?.votes ?? 0}</strong>
+              </div>
+              <button type="button" className="btn-blue" disabled={editUserSaving}
+                onClick={async () => {
+                  setEditUserSaving(true);
+                  try {
+                    await api.patch(`/admin/users/${editingUser.id}`, editUserValues);
+                    toast.success("Utilisateur mis à jour ✓");
+                    setEditingUser(null);
+                    const res = await api.get("/admin/users?limit=50");
+                    setUsers(res.data.data.users || []);
+                  } catch { toast.error("Erreur"); }
+                  setEditUserSaving(false);
+                }}
+                style={{ marginTop: 4, background: "linear-gradient(135deg,#6366F1,#8B5CF6)", fontSize: "0.9rem", padding: "14px" }}>
+                {editUserSaving ? "Enregistrement..." : "✓ Enregistrer"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Modal modifier concours ──────────────────────────────────────────── */}
+      {editingContest && (
+        <div className="modal-backdrop" onClick={() => setEditingContest(null)}>
+          <div className="modal-sheet" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 440 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: "1.1rem", fontWeight: 800 }}>Modifier le concours</h3>
+                <p style={{ margin: "4px 0 0", color: "#94A3B8", fontSize: "0.8rem" }}>{editingContest.name}</p>
+              </div>
+              <button type="button" onClick={() => setEditingContest(null)} style={{ border: "none", background: "transparent", cursor: "pointer", color: "#94A3B8", fontSize: "1.3rem" }}>×</button>
+            </div>
+            <div style={{ display: "grid", gap: 12 }}>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: "#64748B", display: "block", marginBottom: 6 }}>Nom du concours</label>
+                <input type="text" value={editContestValues.name} onChange={(e) => setEditContestValues({ ...editContestValues, name: e.target.value })} className="admin-input" />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: "#64748B", display: "block", marginBottom: 6 }}>Date de début</label>
+                <input type="date" value={editContestValues.startDate} onChange={(e) => setEditContestValues({ ...editContestValues, startDate: e.target.value })} className="admin-input" />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: "#64748B", display: "block", marginBottom: 6 }}>Date de fin <span style={{ color: "#94A3B8", fontWeight: 400 }}>(optionnelle)</span></label>
+                <input type="date" value={editContestValues.endDate} onChange={(e) => setEditContestValues({ ...editContestValues, endDate: e.target.value })} className="admin-input" />
+                {editContestValues.endDate && (
+                  <button type="button" onClick={() => setEditContestValues({ ...editContestValues, endDate: "" })}
+                    style={{ marginTop: 4, fontSize: 11, color: "#EF4444", background: "none", border: "none", cursor: "pointer" }}>
+                    × Supprimer la date de fin
+                  </button>
+                )}
+              </div>
+              <button type="button" className="btn-blue" disabled={editContestSaving}
+                onClick={async () => {
+                  setEditContestSaving(true);
+                  try {
+                    await api.patch(`/admin/contest/${editingContest.id}`, {
+                      name: editContestValues.name,
+                      startDate: editContestValues.startDate,
+                      endDate: editContestValues.endDate || null,
+                    });
+                    toast.success("Concours mis à jour ✓");
+                    setEditingContest(null);
+                    const res = await api.get("/admin/contests");
+                    setContests(res.data.data || []);
+                  } catch { toast.error("Erreur"); }
+                  setEditContestSaving(false);
+                }}
+                style={{ marginTop: 4, background: "linear-gradient(135deg,#6366F1,#8B5CF6)", fontSize: "0.9rem", padding: "14px" }}>
+                {editContestSaving ? "Enregistrement..." : "✓ Enregistrer les modifications"}
               </button>
             </div>
           </div>
