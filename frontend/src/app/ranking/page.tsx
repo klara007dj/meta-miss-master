@@ -2,7 +2,6 @@
 import { useEffect, useState } from "react";
 import { io } from "socket.io-client";
 import Link from "next/link";
-import BottomNav from "@/components/layout/BottomNav";
 import api from "@/lib/api";
 import { useT } from "@/store/langStore";
 
@@ -75,33 +74,7 @@ export default function RankingPage() {
       {/* Ranking list */}
       <div style={{ padding: "0 16px" }}>
         {current.length === 0
-          ? (
-            <div style={{ textAlign: "center", padding: "60px 20px" }}>
-              <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="var(--border)" strokeWidth="1.5" style={{ margin: "0 auto 12px", display: "block" }}>
-                <path d="M18 20V10M12 20V4M6 20v-6"/>
-              </svg>
-              <div style={{ fontWeight: 700, color: "var(--text)", fontSize: "0.95rem", marginBottom: 6 }}>
-                Aucun résultat disponible
-              </div>
-              <div style={{ fontSize: "0.82rem", color: "var(--text-muted)", marginBottom: 24 }}>
-                Les candidats apparaîtront ici une fois inscrits.
-              </div>
-              <a href="/candidates/register" style={{
-                display: "inline-block",
-                padding: "13px 28px",
-                background: "var(--blue)",
-                color: "#fff",
-                fontFamily: "var(--font)",
-                fontSize: "0.88rem",
-                fontWeight: 600,
-                border: "none",
-                borderRadius: 8,
-                textDecoration: "none",
-              }}>
-                ✨ Envoyer ma candidature
-              </a>
-            </div>
-          )
+          ? [1,2,3,4].map(i => <div key={i} className="shimmer" style={{ height: 60, borderRadius: 10, marginBottom: 8 }} />)
           : current.map((c, i) => {
               const photo = c.photoUrl?.startsWith("http") ? c.photoUrl : `${apiBase}${c.photoUrl}`;
               const percent = pct(c.totalVotes);
@@ -132,7 +105,7 @@ export default function RankingPage() {
         }
       </div>
 
-      <BottomNav />
+
     </div>
   );
 }
