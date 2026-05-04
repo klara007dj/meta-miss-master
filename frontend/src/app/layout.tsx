@@ -2,36 +2,27 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Toaster } from "react-hot-toast";
 import ThemeProvider from "@/components/layout/ThemeProvider";
+import BottomNav from "@/components/layout/BottomNav";
 
 export const metadata: Metadata = {
   title: "MetaMiss Master 2025",
   description: "Votez pour vos candidats préférés au concours MetaMiss Master 2025.",
   keywords: ["miss master", "concours", "vote", "cameroun"],
-
   openGraph: {
     title: "MetaMiss Master 2025",
     description: "🗳️ Votez pour vos candidats préférés · Résultats en direct",
     url: "https://metavote.online",
     siteName: "MetaMiss Master 2025",
-    images: [
-      {
-        url: "https://metavote.online/og-image.jpg",
-        width: 1200,
-        height: 630,
-        alt: "MetaMiss Master 2025 — Élégance · Confiance · Excellence",
-      },
-    ],
+    images: [{ url: "https://metavote.online/og-image.jpg", width: 1200, height: 630, alt: "MetaMiss Master 2025" }],
     type: "website",
     locale: "fr_FR",
   },
-
   twitter: {
     card: "summary_large_image",
     title: "MetaMiss Master 2025",
     description: "🗳️ Votez pour vos candidats préférés · Résultats en direct",
     images: ["https://metavote.online/og-image.jpg"],
   },
-
   icons: {
     icon: "/favicon.ico",
     apple: "/apple-touch-icon.png",
@@ -39,17 +30,19 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="fr" suppressHydrationWarning>
       <body>
         <ThemeProvider>
-          <div className="app-container">
-            {children}
+          {/* Wrapper centré visible sur desktop */}
+          <div className="app-wrapper">
+            {/* Sidebar sur tablet+, bottom nav sur mobile */}
+            <BottomNav />
+            {/* Contenu des pages */}
+            <main className="app-main">
+              {children}
+            </main>
           </div>
           <Toaster position="top-center" toastOptions={{
             style: {
