@@ -34,6 +34,15 @@ export const useAuthStore = create<AuthState>()(
       logout: () =>
         set({ user: null, token: null, refreshToken: null, isAuthenticated: false }),
     }),
-    { name: "mmm-auth" }
+    {
+      name: "mmm-auth",
+      // 7 jours en millisecondes
+      partialize: (state) => ({
+        user: state.user,
+        token: state.token,
+        refreshToken: state.refreshToken,
+        isAuthenticated: state.isAuthenticated,
+      }),
+    }
   )
 );
