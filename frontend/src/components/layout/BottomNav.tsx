@@ -68,7 +68,7 @@ export default function BottomNav() {
         return (
           <Link key={href} href={href} className={`nav-item${active ? " active" : ""}`}>
             {icon(active)}
-            <span className="nav-label">{label}</span>
+            {label}
           </Link>
         );
       })}
