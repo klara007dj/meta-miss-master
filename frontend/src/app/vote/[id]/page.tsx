@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
-import BottomNav from "@/components/layout/BottomNav";
 import api from "@/lib/api";
 import toast from "react-hot-toast";
 import { useT } from "@/store/langStore";
@@ -211,7 +210,7 @@ export default function VoteByIdPage() {
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
         {t.voteConfidential}
       </div>
-      <BottomNav />
+
     </div>
   );
 
@@ -254,7 +253,7 @@ export default function VoteByIdPage() {
           {t.voteConfidential}
         </div>
       </div>
-      <BottomNav />
+
     </div>
   );
 
@@ -432,7 +431,7 @@ export default function VoteByIdPage() {
           {t.voteConfidential}
         </div>
       </div>
-      <BottomNav />
+
     </div>
   );
 }
