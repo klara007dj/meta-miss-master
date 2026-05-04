@@ -74,6 +74,151 @@ body {
 /* Page container — centered, max 430px, white card */
 /* ── App Shell — Mobile First, Tablet & Desktop Responsive ── */
 .app-container {
+/* ══ APP CONTAINER ══════════════════════════════════════════════ */
+.app-container {
+  max-width: 430px;
+  margin: 0 auto;
+  min-height: 100vh;
+  background: var(--bg-white);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 0 40px rgba(0,0,0,0.08);
+}
+
+/* Login / Auth pages — full screen, no container constraint */
+.app-container:has(.auth-fullscreen) {
+  max-width: 100%;
+  box-shadow: none;
+  background: var(--bg);
+}
+
+/* Safe area for bottom nav */
+.page-content {
+  flex: 1;
+  padding-bottom: 80px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ── Bottom Navigation — truly fixed like WhatsApp ── */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 430px;
+  height: 64px;
+  background: var(--bg-white);
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  z-index: 9999;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  box-shadow: 0 -2px 12px rgba(0,0,0,0.06);
+  will-change: transform;
+  -webkit-transform: translateX(-50%) translateZ(0);
+  transform: translateX(-50%) translateZ(0);
+}
+
+/* ─────────────────────────────────────────────────
+   TABLET LAYOUT  (768px – 1023px)
+───────────────────────────────────────────────── */
+@media (min-width: 768px) {
+  body { background: var(--bg); }
+
+  .app-container {
+    max-width: 100%;
+    min-height: 100vh;
+    flex-direction: row;
+    box-shadow: none;
+    background: var(--bg);
+  }
+
+  .bottom-nav {
+    position: fixed;
+    left: 0; top: 0; bottom: 0; right: auto;
+    transform: none; -webkit-transform: none;
+    width: 220px; max-width: 220px;
+    height: 100vh;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: stretch;
+    padding: 20px 0 32px;
+    border-top: none;
+    border-right: 1px solid var(--border);
+    box-shadow: 2px 0 16px rgba(0,0,0,0.04);
+    gap: 2px;
+  }
+
+  .nav-item {
+    flex: none;
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 12px;
+    padding: 13px 20px;
+    font-size: 0.85rem;
+    border-radius: 10px;
+    margin: 0 8px;
+    width: calc(100% - 16px);
+  }
+  .nav-item svg { width: 20px; height: 20px; flex-shrink: 0; }
+  .nav-label { font-size: 0.85rem; }
+  .nav-item.active { background: var(--blue-light); }
+
+  .bottom-nav::before {
+    content: "MetaMiss";
+    display: block;
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: var(--blue);
+    padding: 0 20px 20px;
+    border-bottom: 1px solid var(--border-light);
+    margin-bottom: 10px;
+    letter-spacing: -0.03em;
+  }
+
+  .page-content {
+    margin-left: 220px;
+    padding-bottom: 40px;
+    max-width: 700px;
+    min-height: 100vh;
+    background: var(--bg-white);
+    box-shadow: 0 0 40px rgba(0,0,0,0.06);
+  }
+}
+
+/* ─────────────────────────────────────────────────
+   DESKTOP LAYOUT  (1024px+)
+───────────────────────────────────────────────── */
+@media (min-width: 1024px) {
+  .bottom-nav { width: 260px; max-width: 260px; }
+  .nav-item { padding: 14px 24px; font-size: 0.9rem; gap: 14px; }
+  .page-content { margin-left: 260px; max-width: 680px; }
+}
+
+/* Admin panel — always full width */
+.admin-page {
+  position: relative;
+  left: calc(50% - 50vw);
+  width: 100vw;
+  min-height: 100vh;
+  background: var(--bg);
+  padding: 0;
+}
+
+@media (min-width: 768px) {
+  .admin-page {
+    left: auto;
+    width: 100%;
+  }
+  .page-content:has(.admin-page) {
+    max-width: 100%;
+    margin-left: 0;
+  }
+}
+
   max-width: 430px;
   margin: 0 auto;
   min-height: 100vh;
@@ -958,3 +1103,116 @@ body {
 
 /* Scrollbar hidden */
 .page-content::-webkit-scrollbar { display: none; }
+
+/* ══ ADMIN DASHBOARD LAYOUT ═════════════════════════════════════ */
+
+/* Desktop sidebar — shown only on large screens */
+.admin-desktop-sidebar {
+  display: none !important;
+}
+
+@media (min-width: 900px) {
+  .admin-desktop-sidebar {
+    display: flex !important;
+  }
+  .admin-main-content {
+    margin-left: 260px;
+  }
+  .admin-menu-btn {
+    display: none !important;
+  }
+}
+
+/* Admin stat cards — consistent height */
+.admin-stat-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.admin-stat-card-box {
+  padding: 22px;
+  border-radius: 20px;
+  background: #fff;
+  border: 1px solid #E2E8F0;
+  transition: box-shadow 0.2s;
+  min-height: 130px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.admin-stat-card-box:hover {
+  box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+}
+
+/* Admin table rows — responsive */
+.admin-candidate-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: #fff;
+  border: 1px solid #E2E8F0;
+  border-radius: 16px;
+  margin-bottom: 8px;
+  transition: box-shadow 0.15s;
+}
+
+.admin-candidate-row:hover {
+  box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+}
+
+/* Payment row grid */
+.admin-payment-row {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr 1fr 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 14px 0;
+  border-bottom: 1px solid #F1F5F9;
+}
+
+@media (max-width: 720px) {
+  .admin-payment-row {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .admin-stat-cards-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .admin-stat-cards-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Admin search bar */
+.admin-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #F8FAFF;
+  border: 1.5px solid #E2E8F0;
+  border-radius: 14px;
+  padding: 11px 16px;
+  margin-bottom: 16px;
+  transition: border-color 0.15s;
+}
+.admin-search:focus-within {
+  border-color: #6366F1;
+  background: #fff;
+}
+.admin-search input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-family: var(--font);
+  font-size: 0.88rem;
+  color: var(--text);
+  outline: none;
+}
+
