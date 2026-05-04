@@ -72,6 +72,7 @@ body {
 }
 
 /* Page container — centered, max 430px, white card */
+/* ── App Shell — Mobile First, Tablet & Desktop Responsive ── */
 .app-container {
   max-width: 430px;
   margin: 0 auto;
@@ -80,6 +81,7 @@ body {
   position: relative;
   display: flex;
   flex-direction: column;
+  box-shadow: 0 0 40px rgba(0,0,0,0.08);
 }
 
 /* Safe area for bottom nav */
@@ -87,9 +89,10 @@ body {
   flex: 1;
   padding-bottom: 80px;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
-/* ── Bottom Navigation ── */
+/* ── Bottom Navigation — truly fixed like WhatsApp ── */
 .bottom-nav {
   position: fixed;
   bottom: 0;
@@ -102,7 +105,112 @@ body {
   border-top: 1px solid var(--border);
   display: flex;
   align-items: center;
-  z-index: 100;
+  z-index: 9999;
+  /* Safe area for notched phones */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  box-shadow: 0 -2px 12px rgba(0,0,0,0.06);
+  /* Prevent scroll events from hiding the nav */
+  will-change: transform;
+  -webkit-transform: translateX(-50%) translateZ(0);
+  transform: translateX(-50%) translateZ(0);
+}
+
+/* ─────────────────────────────────────────────────
+   TABLET LAYOUT  (768px – 1023px)
+───────────────────────────────────────────────── */
+@media (min-width: 768px) {
+  body {
+    background: var(--bg);
+  }
+
+  .app-container {
+    max-width: 100%;
+    min-height: 100vh;
+    flex-direction: row;
+    box-shadow: none;
+    background: var(--bg);
+  }
+
+  /* Sidebar nav replaces bottom nav on tablet+ */
+  .bottom-nav {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    right: auto;
+    transform: none;
+    -webkit-transform: none;
+    width: 220px;
+    max-width: 220px;
+    height: 100vh;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: stretch;
+    padding: 20px 0 32px;
+    border-top: none;
+    border-right: 1px solid var(--border);
+    box-shadow: 2px 0 16px rgba(0,0,0,0.04);
+    gap: 2px;
+  }
+
+  .nav-item {
+    flex: none;
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 12px;
+    padding: 13px 20px;
+    font-size: 0.85rem;
+    border-radius: 10px;
+    margin: 0 8px;
+    width: calc(100% - 16px);
+  }
+
+  .nav-item svg { width: 20px; height: 20px; flex-shrink: 0; }
+  .nav-label { font-size: 0.85rem; }
+  .nav-item.active { background: var(--blue-light); }
+
+  /* Nav brand header */
+  .bottom-nav::before {
+    content: "MetaMiss";
+    display: block;
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: var(--blue);
+    padding: 0 20px 20px;
+    border-bottom: 1px solid var(--border-light);
+    margin-bottom: 10px;
+    letter-spacing: -0.03em;
+  }
+
+  .page-content {
+    margin-left: 220px;
+    padding-bottom: 40px;
+    max-width: 700px;
+    min-height: 100vh;
+    background: var(--bg-white);
+    box-shadow: 0 0 40px rgba(0,0,0,0.06);
+  }
+}
+
+/* ─────────────────────────────────────────────────
+   DESKTOP LAYOUT  (1024px+)
+───────────────────────────────────────────────── */
+@media (min-width: 1024px) {
+  .bottom-nav {
+    width: 260px;
+    max-width: 260px;
+  }
+
+  .nav-item {
+    padding: 14px 24px;
+    font-size: 0.9rem;
+    gap: 14px;
+  }
+
+  .page-content {
+    margin-left: 260px;
+    max-width: 680px;
+  }
 }
 
 .nav-item {
@@ -125,7 +233,8 @@ body {
 }
 
 .nav-item.active { color: var(--blue); }
-.nav-item svg { width: 20px; height: 20px; }
+.nav-item svg { width: 20px; height: 20px; flex-shrink: 0; }
+.nav-label { font-size: 0.6rem; }
 
 /* ── Top Bar ── */
 .top-bar {
