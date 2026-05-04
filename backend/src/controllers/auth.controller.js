@@ -55,6 +55,7 @@ class AuthController {
 
   async me(req, res, next) {
     try {
+      // req.user est le payload JWT { id, email, role }
       const user = await authService.getMe(req.user);
       res.json({ success: true, data: user });
     } catch (err) {
@@ -69,7 +70,8 @@ class AuthController {
         return res.status(400).json({ success: false, message: "Token manquant" });
       }
 
-      const result = await authService.refresh(refreshToken);
+      // ✅ Corrigé : authService.refresh → authService.refreshTokens
+      const result = await authService.refreshTokens(refreshToken);
       res.json({ success: true, data: result });
     } catch (err) {
       next(err);
