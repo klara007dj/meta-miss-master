@@ -4,10 +4,10 @@ const { PrismaClient } = require("@prisma/client");
 const { AppError } = require("../utils/errors");
 
 const prisma = new PrismaClient();
-// Admin session: 7 jours
+
+// Sessions : 7 jours
 const ACCESS_EXPIRY = "7d";
 const REFRESH_EXPIRY = "30d";
-// User session: 7 jours
 const USER_ACCESS_EXPIRY = "7d";
 const USER_REFRESH_EXPIRY = "30d";
 
@@ -93,6 +93,32 @@ async function loginUser({ email, password }) {
   };
 }
 
+// ✅ Connexion / inscription via Google OAuth
+async function loginOrRegisterGoogle({ email, name }) {
+  const normalizedEmail = email.toLowerCase().trim();
+
+  // Chercher un utilisateur existant avec cet email
+  let user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+
+  if (!user) {
+    // Créer le compte automatiquement (pas besoin de mot de passe pour Google)
+    user = await prisma.user.create({
+      data: {
+        name: name.trim(),
+        email: normalizedEmail,
+        passwordHash: null, // Pas de mot de passe pour les comptes Google
+        role: "USER",
+      },
+    });
+  }
+
+  const tokens = generateTokens({ id: user.id, email: user.email, role: user.role });
+  return {
+    user: { id: user.id, name: user.name, email: user.email, phone: user.phone, role: user.role, avatar: user.avatar },
+    ...tokens,
+  };
+}
+
 async function refreshTokens(token) {
   let payload;
   try {
@@ -117,11 +143,16 @@ async function refreshTokens(token) {
   };
 }
 
-async function getMe(userId, role) {
+// ✅ getMe accepte un objet payload JWT { id, role } ou (id, role) séparés
+async function getMe(userOrId, roleArg) {
+  const id = typeof userOrId === "object" ? userOrId.id : userOrId;
+  const role = typeof userOrId === "object" ? userOrId.role : roleArg;
+
   if (role === "ADMIN") return buildAdminUser();
-  const user = await prisma.user.findUnique({ where: { id: userId } });
+
+  const user = await prisma.user.findUnique({ where: { id } });
   if (!user) throw new AppError("Utilisateur introuvable", 404);
   return { id: user.id, name: user.name, email: user.email, phone: user.phone, role: user.role, avatar: user.avatar };
 }
 
-module.exports = { loginAdmin, registerUser, loginUser, refreshTokens, getMe };
+module.exports = { loginAdmin, registerUser, loginUser, loginOrRegisterGoogle, refreshTokens, getMe };
