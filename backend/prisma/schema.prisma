@@ -41,7 +41,8 @@ model User {
   email        String    @unique
   name         String
   phone        String?
-  passwordHash String
+  passwordHash String?   // ✅ Optionnel : null pour les comptes Google OAuth
+  avatar       String?
   role         Role      @default(USER)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
