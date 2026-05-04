@@ -1,7 +1,6 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import BottomNav from "@/components/layout/BottomNav";
 import { useT } from "@/store/langStore";
 
 const faqsFr = [
@@ -64,7 +63,7 @@ export default function SupportPage() {
           </div>
         </div>
       </div>
-      <BottomNav />
+
     </div>
   );
 }
