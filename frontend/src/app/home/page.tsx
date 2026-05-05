@@ -11,13 +11,16 @@ export default function HomeDashboardPage() {
   const [topMiss, setTopMiss] = useState<any[]>([]);
   const [topMaster, setTopMaster] = useState<any[]>([]);
   const [contest, setContest] = useState<any>(null);
+  const [loadingCandidates, setLoadingCandidates] = useState(true);
   const apiBase = process.env.NEXT_PUBLIC_API_URL?.replace("/api", "") || "http://localhost:5000";
 
   useEffect(() => {
     api.get("/ranking/stats").then((r) => setStats(r.data.data)).catch(() => {});
-    api.get("/candidates/top?type=MISS&limit=6").then((r) => setTopMiss(r.data.data || [])).catch(() => {});
-    api.get("/candidates/top?type=MASTER&limit=6").then((r) => setTopMaster(r.data.data || [])).catch(() => {});
     api.get("/contest/active").then((r) => setContest(r.data.data)).catch(() => {});
+    Promise.all([
+      api.get("/candidates/top?type=MISS&limit=6").then((r) => setTopMiss(r.data.data || [])).catch(() => {}),
+      api.get("/candidates/top?type=MASTER&limit=6").then((r) => setTopMaster(r.data.data || [])).catch(() => {}),
+    ]).finally(() => setLoadingCandidates(false));
   }, []);
 
   // Calcul des jours restants / avant début
@@ -145,13 +148,30 @@ export default function HomeDashboardPage() {
         <span className="section-title">{t.topCandidates}</span>
         <Link href="/candidates" className="see-all">{t.seeAll}</Link>
       </div>
-      {topAll.length === 0 ? (
-        <div style={{ padding: "0 16px" }}>
+
+      {/* Skeletons pendant le chargement */}
+      {loadingCandidates && (
+        <div style={{ padding: "0 16px", display: "flex", gap: 10 }}>
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="shimmer" style={{ height: 160, borderRadius: 16, marginBottom: 10 }} />
+            <div key={i} className="shimmer" style={{ height: 160, width: 120, borderRadius: 16, flexShrink: 0 }} />
           ))}
         </div>
-      ) : (
+      )}
+
+      {/* Aucun candidat après chargement */}
+      {!loadingCandidates && topAll.length === 0 && (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "32px 24px", textAlign: "center", margin: "0 16px", background: "var(--bg)", borderRadius: 16, border: "1.5px dashed var(--border)" }}>
+          <div style={{ fontSize: "2.5rem", marginBottom: 12 }}>🎭</div>
+          <div style={{ fontWeight: 700, fontSize: "0.9rem", color: "var(--text)", marginBottom: 6 }}>{t.noCandidatesYet}</div>
+          <div style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginBottom: 20, lineHeight: 1.6 }}>{t.noCandidatesDesc}</div>
+          <Link href="/candidates/register" className="btn-blue" style={{ maxWidth: 260, width: "100%", fontSize: "0.83rem", padding: "11px 16px" }}>
+            {t.submitCandidacyNow}
+          </Link>
+        </div>
+      )}
+
+      {/* Liste horizontale des candidats */}
+      {!loadingCandidates && topAll.length > 0 && (
         <div style={{ overflowX: "auto", padding: "0 16px 8px", display: "flex", gap: 10, scrollSnapType: "x mandatory" }}>
           {topAll.map((c, i) => {
             const photo = c.photoUrl?.startsWith("http") ? c.photoUrl : `${apiBase}${c.photoUrl}`;
