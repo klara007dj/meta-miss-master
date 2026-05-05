@@ -197,7 +197,7 @@ export default function RegisterPage() {
                     <div>
                       <div style={{ fontWeight: 700, fontSize: "0.85rem", color: "#10B981" }}>Photo uploadée ✓</div>
                       <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", marginTop: 2 }}>
-                        {photo?.name?.length > 24 ? photo?.name?.slice(0, 24) + "…" : photo?.name}
+                        {(photo?.name?.length ?? 0) > 24 ? photo?.name?.slice(0, 24) + "…" : photo?.name}
                       </div>
                     </div>
                   </div>
