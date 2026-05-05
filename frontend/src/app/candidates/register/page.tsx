@@ -10,8 +10,9 @@ import toast from "react-hot-toast";
 
 const schema = z.object({
   name: z.string().min(2, "Nom requis"),
-  type: z.enum(["MISS","MASTER"]),
-  age: z.coerce.number().min(16).max(35),
+  email: z.string().email("Email invalide"),
+  type: z.enum(["MISS", "MASTER"]),
+  age: z.coerce.number().min(16, "Minimum 16 ans").max(35, "Maximum 35 ans"),
   city: z.string().min(2, "Ville requise"),
   bio: z.string().max(500).optional(),
   instagram: z.string().optional(),
@@ -24,144 +25,335 @@ type FormData = z.infer<typeof schema>;
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { isAuthenticated } = useAuthStore();
-  const [photo, setPhoto] = useState<File|null>(null);
-  const [preview, setPreview] = useState<string|null>(null);
+  const { isAuthenticated, user } = useAuthStore();
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [photoUploaded, setPhotoUploaded] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
 
-  const { register, watch, handleSubmit, formState: { errors } } = useForm<FormData>({
-    resolver: zodResolver(schema), defaultValues: { type: "MISS" },
+  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<FormData>({
+    resolver: zodResolver(schema),
+    defaultValues: { type: "MISS", email: user?.email || "" },
   });
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      router.push("/login?redirect=/candidates/register");
-    }
+    if (!isAuthenticated) router.push("/login?redirect=/candidates/register");
   }, [isAuthenticated, router]);
 
-  const handleFile = (f: File) => { if (f.size > 5*1024*1024) { toast.error("Max 5MB"); return; } setPhoto(f); setPreview(URL.createObjectURL(f)); };
+  // Pré-remplir l'email depuis le compte connecté
+  useEffect(() => {
+    if (user?.email) setValue("email", user.email);
+  }, [user, setValue]);
 
   const selectedType = watch("type");
+
+  const handleFile = (f: File) => {
+    if (f.size > 5 * 1024 * 1024) { toast.error("Max 5MB"); return; }
+    setPhoto(f);
+    setPhotoUploaded(true);
+  };
+
+  const removePhoto = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setPhoto(null);
+    setPhotoUploaded(false);
+  };
 
   const onSubmit = async (data: FormData) => {
     if (!photo) { toast.error("Ajoutez une photo"); return; }
     setSubmitting(true);
     try {
       const form = new FormData();
-      Object.entries(data).forEach(([k,v]) => v !== undefined && form.append(k, String(v)));
+      Object.entries(data).forEach(([k, v]) => v !== undefined && form.append(k, String(v)));
       form.append("photo", photo);
       await api.post("/candidates/register", form, { headers: { "Content-Type": "multipart/form-data" } });
       setDone(true);
-    } catch (err: any) { toast.error(err.response?.data?.message || "Erreur"); }
-    finally { setSubmitting(false); }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Erreur lors de l'envoi");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const inp: React.CSSProperties = { width:"100%", padding:"12px 14px", border:"1.5px solid var(--border)", borderRadius:8, fontFamily:"var(--font)", fontSize:"0.88rem", color:"var(--text)", background:"#fff", outline:"none", marginBottom:12 };
-  const lbl: React.CSSProperties = { display:"block", fontSize:"0.72rem", fontWeight:600, color:"var(--text-muted)", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:6 };
+  /* ─── Styles adaptatifs au thème ─── */
+  const inp: React.CSSProperties = {
+    width: "100%",
+    padding: "13px 14px",
+    border: "1.5px solid var(--border)",
+    borderRadius: 10,
+    fontFamily: "var(--font)",
+    fontSize: "0.88rem",
+    color: "var(--text)",
+    background: "var(--bg)",
+    outline: "none",
+    boxSizing: "border-box",
+    transition: "border-color 0.15s",
+  };
+  const lbl: React.CSSProperties = {
+    display: "block",
+    fontSize: "0.7rem",
+    fontWeight: 700,
+    color: "var(--text-muted)",
+    textTransform: "uppercase",
+    letterSpacing: "0.08em",
+    marginBottom: 6,
+  };
+  const field: React.CSSProperties = { marginBottom: 16 };
+  const errStyle: React.CSSProperties = { color: "#EF4444", fontSize: "0.72rem", marginTop: 4 };
+
+  const section: React.CSSProperties = {
+    background: "var(--bg-card)",
+    border: "1px solid var(--border)",
+    borderRadius: 14,
+    padding: "18px 16px",
+    marginBottom: 14,
+  };
+
+  const sectionTitle: React.CSSProperties = {
+    fontSize: "0.78rem",
+    fontWeight: 800,
+    color: "var(--blue)",
+    textTransform: "uppercase",
+    letterSpacing: "0.06em",
+    marginBottom: 16,
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+  };
 
   return (
     <div className="page-content fade-up">
+      {/* Top bar */}
       <div className="top-bar">
-        <button onClick={() => router.back()} style={{ width:32, height:32, border:"1px solid var(--border)", borderRadius:8, background:"#fff", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        <button
+          onClick={() => router.back()}
+          style={{ width: 34, height: 34, border: "1.5px solid var(--border)", borderRadius: 9, background: "var(--bg-card)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text)" strokeWidth="2.2">
+            <path d="M19 12H5M12 19l-7-7 7-7" />
+          </svg>
         </button>
-        <span className="top-bar-title">Candidature</span>
-        <div style={{ width:32 }} />
+        <span className="top-bar-title">Ma candidature</span>
+        <div style={{ width: 34 }} />
       </div>
 
+      {/* ─── ÉCRAN SUCCÈS ─── */}
       {done ? (
-        <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"60px 20px", textAlign:"center" }}>
-          <div style={{ width:72, height:72, borderRadius:"50%", background:"#EFF6FF", border:"2px solid #DBEAFE", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 20px" }} className="scale-in">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2"><path d="M20 6L9 17l-5-5"/></svg>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "60px 28px", textAlign: "center" }}>
+          {/* Cercle check animé */}
+          <div style={{ width: 80, height: 80, borderRadius: "50%", background: "var(--blue-light)", border: "2px solid #BFDBFE", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 24 }} className="scale-in">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2.2">
+              <path d="M20 6L9 17l-5-5" />
+            </svg>
           </div>
-          <h2 style={{ fontSize:"1.1rem", fontWeight:800, color:"var(--text)", marginBottom:8 }}>Candidature envoyée !</h2>
-          <p style={{ fontSize:"0.84rem", color:"var(--text-muted)", lineHeight:1.7, marginBottom:28 }}>Votre profil sera visible après validation par l'équipe (sous 24h).</p>
-          <button onClick={() => router.push("/candidates")} className="btn-blue" style={{ maxWidth:300 }}>Voir les candidats</button>
+          <h2 style={{ fontSize: "1.2rem", fontWeight: 800, color: "var(--text)", marginBottom: 10 }}>
+            Candidature envoyée ! 🎉
+          </h2>
+          <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", lineHeight: 1.75, marginBottom: 10, maxWidth: 320 }}>
+            Vos informations ont bien été reçues et sont en cours de vérification par notre équipe.
+          </p>
+          {/* Message email bien visible */}
+          <div style={{ background: "var(--blue-light)", border: "1.5px solid #BFDBFE", borderRadius: 12, padding: "14px 18px", marginBottom: 28, maxWidth: 340, width: "100%" }}>
+            <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+              <span style={{ fontSize: "1.3rem", flexShrink: 0 }}>📧</span>
+              <p style={{ fontSize: "0.82rem", color: "var(--blue)", lineHeight: 1.65, margin: 0, textAlign: "left" }}>
+                Vous recevrez un <strong>e-mail de confirmation</strong> une fois vos informations vérifiées. Vérifiez aussi vos spams.
+              </p>
+            </div>
+          </div>
+          <button onClick={() => router.push("/candidates")} className="btn-blue" style={{ maxWidth: 300, width: "100%" }}>
+            Voir les candidats
+          </button>
         </div>
       ) : (
-        <form onSubmit={handleSubmit(onSubmit)} style={{ padding:"0 16px 24px" }}>
-          {/* Photo upload */}
-          <label style={{ display:"block", marginBottom:16, cursor:"pointer" }}>
-            <div style={{ ...lbl, marginBottom:8 }}>Photo *</div>
-            <div style={{ height:140, border:"1.5px dashed #BFDBFE", borderRadius:12, display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", background:"#F8FAFF", position:"relative" }}>
-              {preview ? (
-                <img src={preview} style={{ width:"100%", height:"100%", objectFit:"cover", position:"absolute", inset:0 }} />
+        <form onSubmit={handleSubmit(onSubmit)} style={{ padding: "0 16px 32px" }}>
+
+          {/* ── Section 1 : Photo ── */}
+          <div style={section}>
+            <div style={sectionTitle}>
+              <span>📸</span> Photo de profil
+            </div>
+            <label style={{ cursor: "pointer", display: "block" }}>
+              {photoUploaded ? (
+                /* État : photo uploadée — affiche confirmation + bouton changer */
+                <div style={{
+                  height: 80,
+                  borderRadius: 12,
+                  border: "1.5px solid #10B981",
+                  background: "var(--bg)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "0 18px",
+                  gap: 12,
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#D1FAE5", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2.2">
+                        <path d="M20 6L9 17l-5-5" />
+                      </svg>
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: "0.85rem", color: "#10B981" }}>Photo uploadée ✓</div>
+                      <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", marginTop: 2 }}>
+                        {photo?.name?.length > 24 ? photo?.name?.slice(0, 24) + "…" : photo?.name}
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={removePhoto}
+                    style={{ background: "none", border: "1.5px solid var(--border)", borderRadius: 8, padding: "5px 10px", fontSize: "0.72rem", color: "var(--text-muted)", cursor: "pointer", fontFamily: "var(--font)", flexShrink: 0 }}
+                  >
+                    Changer
+                  </button>
+                </div>
               ) : (
-                <div style={{ textAlign:"center", color:"var(--text-muted)" }}>
-                  <div style={{ fontSize:"1.8rem", marginBottom:6 }}>📸</div>
-                  <div style={{ fontSize:"0.78rem" }}>Cliquez pour choisir une photo</div>
-                  <div style={{ fontSize:"0.68rem", marginTop:2, color:"var(--text-faint)" }}>JPG/PNG max 5MB</div>
+                /* État : aucune photo — zone de drop */
+                <div style={{
+                  height: 100,
+                  borderRadius: 12,
+                  border: "1.5px dashed var(--border)",
+                  background: "var(--bg)",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                  transition: "border-color 0.15s",
+                }}>
+                  <div style={{ fontSize: "1.6rem" }}>📸</div>
+                  <div style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-muted)" }}>Cliquez pour choisir une photo</div>
+                  <div style={{ fontSize: "0.68rem", color: "var(--text-faint)" }}>JPG / PNG — max 5 MB</div>
                 </div>
               )}
-            </div>
-            <input type="file" accept="image/*" style={{ display:"none" }} onChange={e => { const f=e.target.files?.[0]; if(f) handleFile(f); }} />
-          </label>
-
-          <label style={lbl}>Nom complet *</label>
-          <input {...register("name")} style={inp} placeholder="Votre nom" />
-          {errors.name && <p style={{ color:"#EF4444", fontSize:"0.72rem", marginTop:-8, marginBottom:10 }}>{errors.name.message}</p>}
-
-          <label style={lbl}>Numéro de téléphone (optionnel)</label>
-          <input {...register("phone")} style={inp} placeholder="+237 6XX XXX XXX" />
-
-          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:0 }}>
-            <div>
-              <label style={lbl}>Âge *</label>
-              <input {...register("age")} type="number" style={inp} placeholder="22" />
-            </div>
-            <div>
-              <label style={lbl}>Ville *</label>
-              <input {...register("city")} style={inp} placeholder="Yaoundé" />
-            </div>
+              <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
+            </label>
           </div>
 
-          <label style={lbl}>Catégorie *</label>
-          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:12 }}>
-            {[{v:"MISS",l:"Miss"},{v:"MASTER",l:"Master"}].map(o => {
-              const selected = selectedType === o.v;
-              return (
-                <label key={o.v} style={{ cursor:"pointer" }}>
-                  <input {...register("type")} type="radio" value={o.v} style={{ display:"none" }} />
-                  <div style={{
-                    padding:"12px",
-                    borderRadius:8,
-                    textAlign:"center",
-                    border:"1.5px solid " + (selected ? "#2563EB" : "var(--border)"),
-                    background: selected ? "#EFF6FF" : "#fff",
-                    color: selected ? "#2563EB" : "var(--text)",
-                    fontSize:"0.82rem",
-                    fontWeight:600,
-                  }}>
-                    {o.l}
+          {/* ── Section 2 : Informations personnelles ── */}
+          <div style={section}>
+            <div style={sectionTitle}><span>👤</span> Informations personnelles</div>
+
+            <div style={field}>
+              <label style={lbl}>Nom complet *</label>
+              <input {...register("name")} style={inp} placeholder="Votre nom et prénom" />
+              {errors.name && <p style={errStyle}>{errors.name.message}</p>}
+            </div>
+
+            <div style={field}>
+              <label style={lbl}>Adresse e-mail *</label>
+              <div style={{ position: "relative" }}>
+                <input {...register("email")} type="email" style={{ ...inp, paddingRight: 40 }} placeholder="votre@email.com" />
+                {user?.email && (
+                  <div style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)" }} title="Pré-rempli depuis votre compte">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2.2">
+                      <path d="M20 6L9 17l-5-5" />
+                    </svg>
                   </div>
-                </label>
-              );
-            })}
+                )}
+              </div>
+              {errors.email && <p style={errStyle}>{errors.email.message}</p>}
+              <p style={{ fontSize: "0.69rem", color: "var(--text-muted)", marginTop: 4 }}>
+                Votre email de confirmation sera envoyé à cette adresse. Vous pouvez le modifier.
+              </p>
+            </div>
+
+            <div style={field}>
+              <label style={lbl}>Téléphone (optionnel)</label>
+              <input {...register("phone")} style={inp} placeholder="+237 6XX XXX XXX" />
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div style={field}>
+                <label style={lbl}>Âge *</label>
+                <input {...register("age")} type="number" style={inp} placeholder="22" />
+                {errors.age && <p style={errStyle}>{errors.age.message}</p>}
+              </div>
+              <div style={field}>
+                <label style={lbl}>Ville *</label>
+                <input {...register("city")} style={inp} placeholder="Yaoundé" />
+                {errors.city && <p style={errStyle}>{errors.city.message}</p>}
+              </div>
+            </div>
           </div>
 
-          <label style={lbl}>Bio (optionnel)</label>
-          <textarea {...register("bio")} rows={3} style={{ ...inp, resize:"none" }} placeholder="Parlez de vous..." />
+          {/* ── Section 3 : Catégorie ── */}
+          <div style={section}>
+            <div style={sectionTitle}><span>🏆</span> Catégorie *</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              {[{ v: "MISS", l: "Miss", emoji: "👑" }, { v: "MASTER", l: "Master", emoji: "🎯" }].map(o => {
+                const selected = selectedType === o.v;
+                return (
+                  <label key={o.v} style={{ cursor: "pointer" }}>
+                    <input {...register("type")} type="radio" value={o.v} style={{ display: "none" }} />
+                    <div style={{
+                      padding: "14px 10px",
+                      borderRadius: 12,
+                      textAlign: "center",
+                      border: "1.5px solid " + (selected ? "#2563EB" : "var(--border)"),
+                      background: selected ? "var(--blue-light)" : "var(--bg)",
+                      color: selected ? "#2563EB" : "var(--text-muted)",
+                      fontSize: "0.85rem",
+                      fontWeight: 700,
+                      transition: "all 0.15s",
+                    }}>
+                      <div style={{ fontSize: "1.4rem", marginBottom: 4 }}>{o.emoji}</div>
+                      {o.l}
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
 
-          <label style={lbl}>Instagram (optionnel)</label>
-          <input {...register("instagram")} style={inp} placeholder="@votre_pseudo" />
+          {/* ── Section 4 : Bio ── */}
+          <div style={section}>
+            <div style={sectionTitle}><span>✍️</span> Présentation</div>
+            <div style={field}>
+              <label style={lbl}>Bio (optionnel)</label>
+              <textarea {...register("bio")} rows={3} style={{ ...inp, resize: "none", lineHeight: 1.6 }} placeholder="Parlez de vous, vos passions, vos ambitions..." />
+            </div>
+          </div>
 
-          <label style={lbl}>TikTok (optionnel)</label>
-          <input {...register("tiktok")} style={inp} placeholder="@votre_pseudo" />
+          {/* ── Section 5 : Réseaux sociaux ── */}
+          <div style={section}>
+            <div style={sectionTitle}><span>📱</span> Réseaux sociaux</div>
+            {[
+              { key: "instagram", label: "Instagram", placeholder: "@votre_pseudo", icon: "📸" },
+              { key: "tiktok", label: "TikTok", placeholder: "@votre_pseudo", icon: "🎵" },
+              { key: "snap", label: "Snapchat", placeholder: "votre_pseudo", icon: "👻" },
+              { key: "whatsappFan", label: "Lien groupe WhatsApp fan", placeholder: "https://chat.whatsapp.com/...", icon: "💬" },
+            ].map(s => (
+              <div key={s.key} style={field}>
+                <label style={lbl}>{s.icon} {s.label} <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>(optionnel)</span></label>
+                <input {...register(s.key as any)} style={inp} placeholder={s.placeholder} />
+              </div>
+            ))}
+          </div>
 
-          <label style={lbl}>Snapchat (optionnel)</label>
-          <input {...register("snap")} style={inp} placeholder="votre_pseudo" />
-
-          <label style={lbl}>Lien Support Fan WhatsApp (optionnel)</label>
-          <input {...register("whatsappFan")} style={inp} placeholder="https://chat.whatsapp.com/..." />
-
-          <button type="submit" disabled={submitting} className="btn-blue" style={{ opacity:submitting?0.6:1 }}>
-            {submitting ? "Envoi..." : "Soumettre ma candidature"}
+          {/* ── Bouton submit ── */}
+          <button type="submit" disabled={submitting} className="btn-blue" style={{ opacity: submitting ? 0.65 : 1, fontSize: "0.92rem", padding: "15px" }}>
+            {submitting ? (
+              <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                <svg style={{ animation: "spin 1s linear infinite" }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21 12a9 9 0 11-6.219-8.56" />
+                </svg>
+                Envoi en cours...
+              </span>
+            ) : "Soumettre ma candidature"}
           </button>
-          <div className="security-badge"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Validation sous 24h</div>
+
+          <div className="security-badge" style={{ marginTop: 12 }}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            </svg>
+            Vos données sont sécurisées · Validation sous 24h
+          </div>
+
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
         </form>
       )}
-
     </div>
   );
 }
