@@ -4,6 +4,7 @@ import { io } from "socket.io-client";
 import Link from "next/link";
 import api from "@/lib/api";
 import { useT } from "@/store/langStore";
+import CandidacyButton from "@/components/CandidacyButton";
 
 interface RC { id: string; name: string; city: string; photoUrl: string; totalVotes: number; rank: number; }
 
@@ -81,13 +82,11 @@ export default function RankingPage() {
 
         {/* État vide après chargement */}
         {!loading && current.length === 0 && (
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "60px 24px", textAlign: "center" }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "stretch", padding: "60px 24px", textAlign: "center" }}>
             <div style={{ fontSize: "3rem", marginBottom: 16 }}>🏆</div>
             <div style={{ fontWeight: 800, fontSize: "1rem", color: "var(--text)", marginBottom: 8 }}>{t.noResultsYet}</div>
-            <div style={{ fontSize: "0.83rem", color: "var(--text-muted)", marginBottom: 28, lineHeight: 1.6, maxWidth: 280 }}>{t.noResultsDesc}</div>
-            <Link href="/candidates/register" className="btn-blue" style={{ maxWidth: 280, width: "100%" }}>
-              {t.submitCandidacyNow}
-            </Link>
+            <div style={{ fontSize: "0.83rem", color: "var(--text-muted)", marginBottom: 28, lineHeight: 1.6 }}>{t.noResultsDesc}</div>
+            <CandidacyButton variant="full" style={{ margin: "0 auto" }} />
           </div>
         )}
 
