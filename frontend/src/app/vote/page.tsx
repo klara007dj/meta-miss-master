@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import api from "@/lib/api";
 import { useT } from "@/store/langStore";
+import CandidacyButton from "@/components/CandidacyButton";
 
 export default function VoteListPage() {
   const t = useT();
@@ -36,13 +37,11 @@ export default function VoteListPage() {
 
         {/* État vide — aucun candidat */}
         {!loading && candidates.length === 0 && (
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "48px 8px", textAlign: "center" }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "stretch", padding: "48px 8px", textAlign: "center" }}>
             <div style={{ fontSize: "3rem", marginBottom: 16 }}>🗳️</div>
             <div style={{ fontWeight: 800, fontSize: "1rem", color: "var(--text)", marginBottom: 8 }}>{t.noVoteYet}</div>
             <div style={{ fontSize: "0.83rem", color: "var(--text-muted)", marginBottom: 28, lineHeight: 1.6 }}>{t.noVoteDesc}</div>
-            <Link href="/candidates/register" className="btn-blue" style={{ maxWidth: 280, width: "100%", marginBottom: 12 }}>
-              {t.submitCandidacyNow}
-            </Link>
+            <CandidacyButton variant="full" style={{ margin: "0 auto" }} />
           </div>
         )}
 
