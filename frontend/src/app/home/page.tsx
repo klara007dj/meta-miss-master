@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import api from "@/lib/api";
+import CandidacyButton from "@/components/CandidacyButton";
 import { useT } from "@/store/langStore";
 
 export default function HomeDashboardPage() {
@@ -160,13 +161,11 @@ export default function HomeDashboardPage() {
 
       {/* Aucun candidat après chargement */}
       {!loadingCandidates && topAll.length === 0 && (
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "32px 24px", textAlign: "center", margin: "0 16px", background: "var(--bg)", borderRadius: 16, border: "1.5px dashed var(--border)" }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "stretch", padding: "32px 24px", textAlign: "center", margin: "0 16px", background: "var(--bg)", borderRadius: 16, border: "1.5px dashed var(--border)" }}>
           <div style={{ fontSize: "2.5rem", marginBottom: 12 }}>🎭</div>
           <div style={{ fontWeight: 700, fontSize: "0.9rem", color: "var(--text)", marginBottom: 6 }}>{t.noCandidatesYet}</div>
           <div style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginBottom: 20, lineHeight: 1.6 }}>{t.noCandidatesDesc}</div>
-          <Link href="/candidates/register" className="btn-blue" style={{ maxWidth: 260, width: "100%", fontSize: "0.83rem", padding: "11px 16px" }}>
-            {t.submitCandidacyNow}
-          </Link>
+          <CandidacyButton variant="compact" style={{ margin: "0 auto" }} />
         </div>
       )}
 
