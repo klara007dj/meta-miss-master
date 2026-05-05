@@ -5,6 +5,8 @@ import api from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 import { useT } from "@/store/langStore";
 
+import CandidacyButton from "@/components/CandidacyButton";
+
 export default function CandidatesPage() {
   const t = useT();
   const user = useAuthStore((state) => state.user);
@@ -83,13 +85,11 @@ export default function CandidatesPage() {
 
       {/* Aucun candidat du tout (liste vide après chargement) */}
       {!loading && candidates.length === 0 && (
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "60px 24px", textAlign: "center" }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "stretch", padding: "60px 24px", textAlign: "center" }}>
           <div style={{ fontSize: "3rem", marginBottom: 16 }}>🎭</div>
           <div style={{ fontWeight: 800, fontSize: "1rem", color: "var(--text)", marginBottom: 8 }}>{t.noCandidatesYet}</div>
-          <div style={{ fontSize: "0.83rem", color: "var(--text-muted)", marginBottom: 28, lineHeight: 1.6, maxWidth: 280 }}>{t.noCandidatesDesc}</div>
-          <Link href="/candidates/register" className="btn-blue" style={{ maxWidth: 280, width: "100%" }}>
-            {t.submitCandidacyNow}
-          </Link>
+          <div style={{ fontSize: "0.83rem", color: "var(--text-muted)", marginBottom: 28, lineHeight: 1.6 }}>{t.noCandidatesDesc}</div>
+          <CandidacyButton variant="full" />
         </div>
       )}
 
