@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import BottomNav from "@/components/layout/BottomNav";
 import api from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 import { useT } from "@/store/langStore";
@@ -163,7 +162,7 @@ export default function FavoritesPage() {
         </div>
       )}
 
-      <BottomNav />
+
     </div>
   );
 }
