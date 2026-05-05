@@ -1,6 +1,5 @@
 "use client";
 import { useRouter } from "next/navigation";
-import BottomNav from "@/components/layout/BottomNav";
 import { useT } from "@/store/langStore";
 
 export default function VotesPage() {
@@ -23,7 +22,7 @@ export default function VotesPage() {
         <div style={{ fontSize: "0.84rem", color: "var(--text-muted)" }}>{t.myVotesEmptyDesc}</div>
       </div>
 
-      <BottomNav />
+
     </div>
   );
 }
