@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import BottomNav from "@/components/layout/BottomNav";
 import api from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 import { useT } from "@/store/langStore";
@@ -110,25 +109,10 @@ export default function CandidatesPage() {
       }
       {!loading && filtered.length === 0 && (
         <div style={{ textAlign: "center", padding: "60px 20px", color: "var(--text-muted)", fontSize: "0.88rem" }}>
-          <div style={{ marginBottom: 16 }}>
-            <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="var(--border)" strokeWidth="1.5" style={{ margin: "0 auto 12px", display: "block" }}>
-              <circle cx="12" cy="7" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
-            </svg>
-          </div>
-          <div style={{ fontWeight: 700, color: "var(--text)", fontSize: "0.95rem", marginBottom: 6 }}>
-            {search ? t.noCandidateFound : "Aucune candidate pour l'instant"}
-          </div>
-          <div style={{ fontSize: "0.82rem", color: "var(--text-muted)", marginBottom: 24 }}>
-            {search ? "Essayez un autre terme de recherche." : "Soyez la première à rejoindre le concours !"}
-          </div>
-          {!search && (
-            <Link href="/candidates/register" className="btn-blue" style={{ maxWidth: 260, margin: "0 auto", display: "block" }}>
-              ✨ Envoyer ma candidature
-            </Link>
-          )}
+          {t.noCandidateFound}
         </div>
       )}
-      <BottomNav />
+
     </div>
   );
 }
