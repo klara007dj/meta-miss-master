@@ -2,7 +2,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import BottomNav from "@/components/layout/BottomNav";
 import api from "@/lib/api";
 import toast from "react-hot-toast";
 import { useAuthStore } from "@/store/authStore";
@@ -268,7 +267,7 @@ export default function CandidateDetailPage() {
         </div>
       </div>
 
-      <BottomNav />
+
     </div>
   );
 }
