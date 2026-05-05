@@ -6,22 +6,21 @@ import { translations, type Lang } from "@/lib/i18n";
 interface LangState {
   lang: Lang;
   setLang: (l: Lang) => void;
-  t: typeof translations[Lang];
 }
 
 export const useLangStore = create<LangState>()(
   persist(
     (set) => ({
-      lang: "fr",
-      t: translations.fr,
-      setLang: (lang) =>
-        set({ lang, t: translations[lang] }),
+      lang: "fr" as Lang,
+      setLang: (lang: Lang) => set({ lang }),
     }),
     { name: "mmm-lang" }
   )
 );
 
-// Hook raccourci — utiliser dans les composants
+// Hook raccourci — lit toujours depuis translations en live, jamais depuis le cache
+// Ainsi les nouvelles clés ajoutées sont toujours disponibles
 export function useT() {
-  return useLangStore((s) => s.t);
+  const lang = useLangStore((s) => s.lang);
+  return translations[lang] ?? translations.fr;
 }
