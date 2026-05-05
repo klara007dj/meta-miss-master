@@ -634,30 +634,47 @@ body {
   animation: shimmer 1.5s infinite;
 }
 
-/* Modal backdrop */
+/* ── Modal backdrop ── */
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.4);
-  z-index: 200;
+  background: rgba(0,0,0,0.5);
+  z-index: 500;
   display: flex;
   align-items: flex-end;
   justify-content: center;
+  backdrop-filter: blur(4px);
 }
 .modal-sheet {
   background: var(--bg-white);
   border-radius: 20px 20px 0 0;
   width: 100%;
-  max-width: 430px;
+  max-width: 480px;
   padding: 24px 20px;
-  animation: slide-up 0.3s ease;
+  animation: slide-up 0.25s ease;
+  box-shadow: 0 -8px 40px rgba(0,0,0,0.15);
 }
 @keyframes slide-up {
-  from { transform: translateY(100%); }
-  to   { transform: translateY(0); }
+  from { transform: translateY(100%); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+/* Sur tablet+ : le modal est centré, pas en bas */
+@media (min-width: 600px) {
+  .modal-backdrop {
+    align-items: center;
+  }
+  .modal-sheet {
+    border-radius: 20px;
+    max-width: 520px;
+    animation: modal-fade-in 0.2s ease;
+  }
+  @keyframes modal-fade-in {
+    from { transform: scale(0.96); opacity: 0; }
+    to   { transform: scale(1);    opacity: 1; }
+  }
 }
 
-/* Admin web panel theme */
+/* ── Admin panel — sort du layout app-wrapper ── */
 .admin-page {
   position: relative;
   left: calc(50% - 50vw);
