@@ -1,6 +1,5 @@
 "use client";
 import { useRouter } from "next/navigation";
-import BottomNav from "@/components/layout/BottomNav";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 import LangSelector from "@/components/ui/LangSelector";
 import { useT } from "@/store/langStore";
@@ -188,7 +187,7 @@ export default function SettingsPage() {
       </div>
 
       <div style={{ height: 32 }} />
-      <BottomNav />
+
     </div>
   );
 }
