@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
 import api from "@/lib/api";
 import toast from "react-hot-toast";
+import { useCandidacy } from "@/hooks/useCandidacy";
 
 const schema = z.object({
   name: z.string().min(2, "Nom requis"),
@@ -26,6 +27,7 @@ type FormData = z.infer<typeof schema>;
 export default function RegisterPage() {
   const router = useRouter();
   const { isAuthenticated, user } = useAuthStore();
+  const { markSubmitted } = useCandidacy();
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoUploaded, setPhotoUploaded] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -67,7 +69,8 @@ export default function RegisterPage() {
       const form = new FormData();
       Object.entries(data).forEach(([k, v]) => v !== undefined && form.append(k, String(v)));
       form.append("photo", photo);
-      await api.post("/candidates/register", form, { headers: { "Content-Type": "multipart/form-data" } });
+      const res = await api.post("/candidates/register", form, { headers: { "Content-Type": "multipart/form-data" } });
+      markSubmitted(res.data?.data?.id);
       setDone(true);
     } catch (err: any) {
       toast.error(err.response?.data?.message || "Erreur lors de l'envoi");
