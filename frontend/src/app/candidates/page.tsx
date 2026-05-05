@@ -19,6 +19,7 @@ export default function CandidatesPage() {
   useEffect(() => {
     api.get("/candidates?limit=100")
       .then(r => setCandidates(r.data.data?.candidates || []))
+      .catch(() => setCandidates([]))
       .finally(() => setLoading(false));
   }, []);
 
@@ -26,17 +27,14 @@ export default function CandidatesPage() {
     try {
       const saved = JSON.parse(localStorage.getItem(likesKey) || "[]") as string[];
       setLiked(new Set(saved));
-    } catch {
-      setLiked(new Set());
-    }
+    } catch { setLiked(new Set()); }
   }, [likesKey]);
 
   const toggleLike = (id: string, e: React.MouseEvent) => {
     e.preventDefault();
     setLiked((prev) => {
       const s = new Set(prev);
-      if (s.has(id)) s.delete(id);
-      else s.add(id);
+      if (s.has(id)) s.delete(id); else s.add(id);
       localStorage.setItem(likesKey, JSON.stringify(Array.from(s)));
       return s;
     });
@@ -78,41 +76,57 @@ export default function CandidatesPage() {
         ))}
       </div>
 
-      {/* List */}
-      {loading
-        ? [1,2,3,4,5].map(i => <div key={i} className="shimmer" style={{ height: 72, margin: "0 16px 8px", borderRadius: 10 }} />)
-        : filtered.map((c, i) => {
-            const photo = c.photoUrl?.startsWith("http") ? c.photoUrl : `${apiBase}${c.photoUrl}`;
-            const isLiked = liked.has(c.id);
-            const rank = candidates.filter(x => x.type === c.type).findIndex(x => x.id === c.id) + 1;
-            return (
-              <Link key={c.id} href={`/candidates/${c.id}`} style={{ textDecoration: "none" }}>
-                <div className="candidate-row fade-up" style={{ animationDelay: `${i*0.04}s` }}>
-                  <div className={`rank-badge ${rank===1?"gold":rank===2?"silver":rank===3?"bronze":""}`}>{rank}</div>
-                  <img src={photo} alt={c.name} className="avatar" style={{ width: 48, height: 48, objectFit: "cover" }} onError={(e: any) => { e.target.src = "/placeholder-avatar.png"; e.target.onerror = null; }} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 700, fontSize: "0.88rem", color: "var(--text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.name}</div>
-                    <div style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>{t.region} {c.city}</div>
-                  </div>
-                  <Link href={`/vote/${c.id}`} onClick={e => e.stopPropagation()} className="btn-blue" style={{ width: "auto", padding: "8px 16px", fontSize: "0.75rem", flexShrink: 0 }}>
-                    {t.vote}
-                  </Link>
-                  <button className={`heart-btn${isLiked?" liked":""}`} onClick={e => toggleLike(c.id, e)}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill={isLiked ? "#EF4444" : "none"} stroke={isLiked ? "#EF4444" : "#9CA3AF"} strokeWidth="2">
-                      <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
-                    </svg>
-                  </button>
-                </div>
-              </Link>
-            );
-          })
-      }
-      {!loading && filtered.length === 0 && (
+      {/* Loading skeletons */}
+      {loading && [1,2,3,4,5].map(i => (
+        <div key={i} className="shimmer" style={{ height: 72, margin: "0 16px 8px", borderRadius: 10 }} />
+      ))}
+
+      {/* Aucun candidat du tout (liste vide après chargement) */}
+      {!loading && candidates.length === 0 && (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "60px 24px", textAlign: "center" }}>
+          <div style={{ fontSize: "3rem", marginBottom: 16 }}>🎭</div>
+          <div style={{ fontWeight: 800, fontSize: "1rem", color: "var(--text)", marginBottom: 8 }}>{t.noCandidatesYet}</div>
+          <div style={{ fontSize: "0.83rem", color: "var(--text-muted)", marginBottom: 28, lineHeight: 1.6, maxWidth: 280 }}>{t.noCandidatesDesc}</div>
+          <Link href="/candidates/register" className="btn-blue" style={{ maxWidth: 280, width: "100%" }}>
+            {t.submitCandidacyNow}
+          </Link>
+        </div>
+      )}
+
+      {/* Liste filtrée vide (recherche sans résultat) */}
+      {!loading && candidates.length > 0 && filtered.length === 0 && (
         <div style={{ textAlign: "center", padding: "60px 20px", color: "var(--text-muted)", fontSize: "0.88rem" }}>
           {t.noCandidateFound}
         </div>
       )}
 
+      {/* Liste des candidats */}
+      {!loading && filtered.map((c, i) => {
+        const photo = c.photoUrl?.startsWith("http") ? c.photoUrl : `${apiBase}${c.photoUrl}`;
+        const isLiked = liked.has(c.id);
+        const rank = candidates.filter(x => x.type === c.type).findIndex(x => x.id === c.id) + 1;
+        return (
+          <Link key={c.id} href={`/candidates/${c.id}`} style={{ textDecoration: "none" }}>
+            <div className="candidate-row fade-up" style={{ animationDelay: `${i*0.04}s` }}>
+              <div className={`rank-badge ${rank===1?"gold":rank===2?"silver":rank===3?"bronze":""}`}>{rank}</div>
+              <img src={photo} alt={c.name} className="avatar" style={{ width: 48, height: 48, objectFit: "cover" }}
+                onError={(e: any) => { e.target.src = "/placeholder-avatar.png"; e.target.onerror = null; }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 700, fontSize: "0.88rem", color: "var(--text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.name}</div>
+                <div style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>{t.region} {c.city}</div>
+              </div>
+              <Link href={`/vote/${c.id}`} onClick={e => e.stopPropagation()} className="btn-blue" style={{ width: "auto", padding: "8px 16px", fontSize: "0.75rem", flexShrink: 0 }}>
+                {t.vote}
+              </Link>
+              <button className={`heart-btn${isLiked?" liked":""}`} onClick={e => toggleLike(c.id, e)}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill={isLiked ? "#EF4444" : "none"} stroke={isLiked ? "#EF4444" : "#9CA3AF"} strokeWidth="2">
+                  <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
+                </svg>
+              </button>
+            </div>
+          </Link>
+        );
+      })}
     </div>
   );
 }
