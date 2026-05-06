@@ -1,4 +1,4 @@
-const { PrismaClient } = require("@prisma/client");
+const prisma = require("../utils/prismaClient");
 const axios = require("axios");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
@@ -6,8 +6,8 @@ const { v4: uuidv4 } = require("uuid");
 const { AppError } = require("../utils/errors");
 const logger = require("../utils/logger");
 const { emitRankingUpdate } = require("../socket/socket");
+const { invalidateRankingCache } = require("./ranking.service");
 
-const prisma = new PrismaClient();
 const VOTE_PRICE = 100;
 const GENIUSPAY_BASE_URL = "https://pay.genius.ci/api/v1/merchant";
 const PAYPAL_BASE_URL = process.env.PAYPAL_BASE_URL || "https://api-m.sandbox.paypal.com";
@@ -744,7 +744,8 @@ async function creditVotes(payment) {
   });
 
   if (credited) {
-    await emitRankingUpdate();
+    invalidateRankingCache();   // vider le cache avant d'émettre le socket
+    await emitRankingUpdate();  // envoyer les nouvelles données fraîches
   }
 
   return credited;
