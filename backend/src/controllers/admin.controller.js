@@ -1,3 +1,4 @@
+const prisma = require("../utils/prismaClient");
 const adminService = require("../services/admin.service");
 const candidateService = require("../services/candidate.service");
 const contestService = require("../services/contest.service");
@@ -153,8 +154,7 @@ class AdminController {
 
   async deleteUser(req, res, next) {
     try {
-      const { PrismaClient } = require("@prisma/client");
-      const prisma = new PrismaClient();
+      
       const id = req.params.id; // CUID string
       if (req.user.id === id) return res.status(400).json({ success: false, message: "Vous ne pouvez pas vous supprimer vous-même." });
       await prisma.user.delete({ where: { id } });
@@ -164,8 +164,7 @@ class AdminController {
 
   async updateUser(req, res, next) {
     try {
-      const { PrismaClient } = require("@prisma/client");
-      const prisma = new PrismaClient();
+      
       const id = req.params.id; // CUID string
       const { name, email, role } = req.body;
       const user = await prisma.user.update({
