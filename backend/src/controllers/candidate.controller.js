@@ -1,8 +1,7 @@
+const prisma = require("../utils/prismaClient");
 const candidateService = require("../services/candidate.service");
-const { PrismaClient } = require("@prisma/client");
 const { validationResult } = require("express-validator");
 
-const prisma = new PrismaClient();
 
 class CandidateController {
 
