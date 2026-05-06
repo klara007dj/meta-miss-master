@@ -3,7 +3,7 @@ const passport = require("passport");
 const { body } = require("express-validator");
 const authController = require("../controllers/auth.controller");
 const { authenticate } = require("../middlewares/auth");
-const { authRateLimiter } = require("../middlewares/rateLimiter");
+const { authRateLimiter, adminAuthRateLimiter } = require("../middlewares/rateLimiter");
 
 const router = express.Router();
 
@@ -37,7 +37,7 @@ router.get(
 );
 
 router.post("/login", authRateLimiter, adminLoginValidation, authController.login);
-router.post("/admin/login", authRateLimiter, adminLoginValidation, authController.login);
+router.post("/admin/login", adminAuthRateLimiter, adminLoginValidation, authController.login);
 router.post("/user/register", authRateLimiter, userRegisterValidation, authController.registerUser);
 router.post("/user/login", authRateLimiter, userLoginValidation, authController.loginUser);
 router.post("/refresh", authRateLimiter, authController.refreshToken);
