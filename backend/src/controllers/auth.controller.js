@@ -15,6 +15,7 @@ class AuthController {
         password,
         propertyNumber,
         motherFullName,
+        ip: req.ip || req.headers["x-forwarded-for"] || "unknown",
       });
 
       res.json({ success: true, message: "Connexion admin réussie", data: result });
@@ -55,7 +56,6 @@ class AuthController {
 
   async me(req, res, next) {
     try {
-      // req.user est le payload JWT { id, email, role }
       const user = await authService.getMe(req.user);
       res.json({ success: true, data: user });
     } catch (err) {
@@ -70,8 +70,7 @@ class AuthController {
         return res.status(400).json({ success: false, message: "Token manquant" });
       }
 
-      // ✅ Corrigé : authService.refresh → authService.refreshTokens
-      const result = await authService.refreshTokens(refreshToken);
+      const result = await authService.refresh(refreshToken);
       res.json({ success: true, data: result });
     } catch (err) {
       next(err);
