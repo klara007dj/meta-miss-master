@@ -1,158 +1,41 @@
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
-const { PrismaClient } = require("@prisma/client");
-const { AppError } = require("../utils/errors");
+/**
+ * Cache en mémoire partagée (sans Redis).
+ * Pour une vraie infrastructure multi-instance, remplacer par ioredis.
+ * Pour 20 000 utilisateurs sur UNE instance : ce cache suffit parfaitement.
+ */
 
-const prisma = new PrismaClient();
+const store = new Map();
 
-// Sessions : 7 jours
-const ACCESS_EXPIRY = "7d";
-const REFRESH_EXPIRY = "30d";
-const USER_ACCESS_EXPIRY = "7d";
-const USER_REFRESH_EXPIRY = "30d";
-
-function generateTokens(payload, isAdmin = false) {
-  const accessToken = jwt.sign(payload, process.env.JWT_SECRET, {
-    expiresIn: isAdmin ? ACCESS_EXPIRY : USER_ACCESS_EXPIRY,
-  });
-  const refreshToken = jwt.sign(payload, process.env.JWT_REFRESH_SECRET, {
-    expiresIn: isAdmin ? REFRESH_EXPIRY : USER_REFRESH_EXPIRY,
-  });
-  return { accessToken, refreshToken };
-}
-
-function buildAdminUser() {
-  const email = (process.env.ADMIN_EMAIL || "").trim().toLowerCase();
-  const displayName = (process.env.ADMIN_DISPLAY_NAME || "Administrateur").trim();
-  return { id: "env-admin", name: displayName, email, role: "ADMIN" };
-}
-
-function getAdminConfig() {
-  const email = (process.env.ADMIN_EMAIL || "").trim().toLowerCase();
-  const password = (process.env.ADMIN_PASSWORD || "").trim();
-  const propertyNumber = (process.env.ADMIN_PROPERTY_NUMBER || "").trim();
-  const motherFullName = (process.env.ADMIN_MOTHER_FULL_NAME || "").trim().toLowerCase();
-
-  if (!email || !password || !propertyNumber || !motherFullName) {
-    throw new AppError("Variables admin manquantes sur le serveur", 500);
+function get(key) {
+  const entry = store.get(key);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) {
+    store.delete(key);
+    return null;
   }
-  return { email, password, propertyNumber, motherFullName };
+  return entry.value;
 }
 
-async function loginAdmin({ email, password, propertyNumber, motherFullName }) {
-  const config = getAdminConfig();
-
-  const isValid =
-    email.toLowerCase().trim() === config.email &&
-    password === config.password &&
-    propertyNumber.trim() === config.propertyNumber &&
-    motherFullName.toLowerCase().trim() === config.motherFullName;
-
-  if (!isValid) throw new AppError("Identifiants admin invalides", 401);
-
-  const user = buildAdminUser();
-  const tokens = generateTokens({ id: user.id, email: user.email, role: user.role }, true);
-  return { user, ...tokens };
+function set(key, value, ttlSeconds = 5) {
+  store.set(key, { value, expiresAt: Date.now() + ttlSeconds * 1000 });
 }
 
-async function registerUser({ name, email, password, phone }) {
-  const normalizedEmail = email.toLowerCase().trim();
-  const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } });
-  if (existing) throw new AppError("Cet email est déjà utilisé", 409);
-
-  const passwordHash = await bcrypt.hash(password, 10);
-  const user = await prisma.user.create({
-    data: {
-      name: name.trim(),
-      email: normalizedEmail,
-      passwordHash,
-      phone: phone?.trim() || null,
-      role: "USER",
-    },
-  });
-
-  const tokens = generateTokens({ id: user.id, email: user.email, role: user.role });
-  return {
-    user: { id: user.id, name: user.name, email: user.email, phone: user.phone, role: user.role },
-    ...tokens,
-  };
+function del(key) {
+  store.delete(key);
 }
 
-async function loginUser({ email, password }) {
-  const normalizedEmail = email.toLowerCase().trim();
-  const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
-  if (!user || !user.passwordHash) throw new AppError("Email ou mot de passe incorrect", 401);
-
-  const valid = await bcrypt.compare(password, user.passwordHash);
-  if (!valid) throw new AppError("Email ou mot de passe incorrect", 401);
-
-  const tokens = generateTokens({ id: user.id, email: user.email, role: user.role });
-  return {
-    user: { id: user.id, name: user.name, email: user.email, phone: user.phone, role: user.role, avatar: user.avatar },
-    ...tokens,
-  };
-}
-
-// ✅ Connexion / inscription via Google OAuth
-async function loginOrRegisterGoogle({ email, name }) {
-  const normalizedEmail = email.toLowerCase().trim();
-
-  // Chercher un utilisateur existant avec cet email
-  let user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
-
-  if (!user) {
-    // Créer le compte automatiquement (pas besoin de mot de passe pour Google)
-    user = await prisma.user.create({
-      data: {
-        name: name.trim(),
-        email: normalizedEmail,
-        passwordHash: null, // Pas de mot de passe pour les comptes Google
-        role: "USER",
-      },
-    });
+function delPattern(prefix) {
+  for (const k of store.keys()) {
+    if (k.startsWith(prefix)) store.delete(k);
   }
-
-  const tokens = generateTokens({ id: user.id, email: user.email, role: user.role });
-  return {
-    user: { id: user.id, name: user.name, email: user.email, phone: user.phone, role: user.role, avatar: user.avatar },
-    ...tokens,
-  };
 }
 
-async function refreshTokens(token) {
-  let payload;
-  try {
-    payload = jwt.verify(token, process.env.JWT_REFRESH_SECRET);
-  } catch {
-    throw new AppError("Refresh token invalide", 401);
+// Nettoyage des entrées expirées toutes les 60s pour éviter les fuites mémoire
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of store.entries()) {
+    if (now > v.expiresAt) store.delete(k);
   }
+}, 60_000);
 
-  if (payload.role === "ADMIN") {
-    const user = buildAdminUser();
-    const tokens = generateTokens({ id: user.id, email: user.email, role: user.role }, true);
-    return { user, ...tokens };
-  }
-
-  const user = await prisma.user.findUnique({ where: { id: payload.id } });
-  if (!user) throw new AppError("Utilisateur introuvable", 404);
-
-  const tokens = generateTokens({ id: user.id, email: user.email, role: user.role });
-  return {
-    user: { id: user.id, name: user.name, email: user.email, role: user.role, avatar: user.avatar },
-    ...tokens,
-  };
-}
-
-// ✅ getMe accepte un objet payload JWT { id, role } ou (id, role) séparés
-async function getMe(userOrId, roleArg) {
-  const id = typeof userOrId === "object" ? userOrId.id : userOrId;
-  const role = typeof userOrId === "object" ? userOrId.role : roleArg;
-
-  if (role === "ADMIN") return buildAdminUser();
-
-  const user = await prisma.user.findUnique({ where: { id } });
-  if (!user) throw new AppError("Utilisateur introuvable", 404);
-  return { id: user.id, name: user.name, email: user.email, phone: user.phone, role: user.role, avatar: user.avatar };
-}
-
-module.exports = { loginAdmin, registerUser, loginUser, loginOrRegisterGoogle, refreshTokens, getMe };
+module.exports = { get, set, del, delPattern };
