@@ -287,7 +287,15 @@ export default function CandidatesPage() {
             gap: 8px;
           }
           .cand-card-img-wrap {
-            aspect-ratio: 1/1;
+            aspect-ratio: 3/4;
+          }
+          .cand-card-votes {
+            font-size: 0.68rem;
+            padding: 4px 8px;
+          }
+          .cand-card-rank {
+            font-size: 0.68rem;
+            padding: 4px 8px;
           }
         }
       `}</style>
@@ -373,7 +381,7 @@ export default function CandidatesPage() {
                     </svg>
                     #{rank}
                   </div>
-                  {c.totalVotes > 0 && (
+                  {c.totalVotes >= 0 && (
                     <div className="cand-card-votes">
                       <svg width="10" height="10" viewBox="0 0 24 24" fill="var(--blue)" stroke="none">
                         <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
