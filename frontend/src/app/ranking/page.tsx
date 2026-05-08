@@ -1,422 +1,525 @@
 "use client";
 import { useEffect, useState } from "react";
+import { io } from "socket.io-client";
 import Link from "next/link";
 import api from "@/lib/api";
-import { useAuthStore } from "@/store/authStore";
 import { useT } from "@/store/langStore";
 import CandidacyButton from "@/components/CandidacyButton";
+import toast from "react-hot-toast";
 
-export default function CandidatesPage() {
+interface RC { id: string; name: string; city: string; photoUrl: string; totalVotes: number; rank: number; }
+
+export default function RankingPage() {
   const t = useT();
-  const user = useAuthStore((state) => state.user);
-  const [candidates, setCandidates] = useState<any[]>([]);
+  const [tab, setTab] = useState<"MISS" | "MASTER">("MISS");
+  const [miss, setMiss] = useState<RC[]>([]);
+  const [master, setMaster] = useState<RC[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<"ALL" | "MISS" | "MASTER">("ALL");
-  const [search, setSearch] = useState("");
-  const [liked, setLiked] = useState<Set<string>>(new Set());
+  const [live, setLive] = useState(false);
   const apiBase = process.env.NEXT_PUBLIC_API_URL?.replace("/api", "") || "http://localhost:5000";
-  const likesKey = user ? `mmm-likes-${user.id}` : "mmm-likes-guest";
 
   useEffect(() => {
-    api.get("/candidates?limit=100")
-      .then(r => setCandidates(r.data.data?.candidates || []))
-      .catch(() => setCandidates([]))
+    Promise.all([
+      api.get("/ranking?type=MISS").then(r => setMiss(r.data.data || [])),
+      api.get("/ranking?type=MASTER").then(r => setMaster(r.data.data || [])),
+    ])
+      .catch(() => {})
       .finally(() => setLoading(false));
+
+    const socket = io(process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:5000", { transports: ["websocket"] });
+    socket.on("connect", () => { setLive(true); socket.emit("join:ranking"); });
+    socket.on("disconnect", () => setLive(false));
+    socket.on("ranking:update", (d) => { setMiss(d.miss || []); setMaster(d.master || []); });
+    return () => { socket.disconnect(); };
   }, []);
 
-  useEffect(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem(likesKey) || "[]") as string[];
-      setLiked(new Set(saved));
-    } catch { setLiked(new Set()); }
-  }, [likesKey]);
+  const current = tab === "MISS" ? miss : master;
+  const total = current.reduce((sum, c) => sum + c.totalVotes, 0) || 1;
+  const pct = (v: number) => Math.round((v / total) * 100);
 
-  const toggleLike = (id: string, e: React.MouseEvent) => {
-    e.preventDefault();
-    setLiked((prev) => {
-      const s = new Set(prev);
-      if (s.has(id)) s.delete(id); else s.add(id);
-      localStorage.setItem(likesKey, JSON.stringify(Array.from(s)));
-      return s;
-    });
+  const handleShare = async () => {
+    const url = window.location.href;
+    if (navigator.share) {
+      try { await navigator.share({ title: "Meta Miss Master — Classement", url }); } catch { }
+    } else {
+      await navigator.clipboard.writeText(url);
+      toast.success("Lien copié !");
+    }
   };
-
-  const filtered = candidates
-    .filter(c => filter === "ALL" || c.type === filter)
-    .filter(c => !search || c.name.toLowerCase().includes(search.toLowerCase()) || c.city?.toLowerCase().includes(search.toLowerCase()));
+  const handleCopyLink = async () => {
+    await navigator.clipboard.writeText(window.location.href);
+    toast.success("Lien copié !");
+  };
+  const handleWhatsApp = () => {
+    window.open(`https://wa.me/?text=${encodeURIComponent("Classement Meta Miss Master 2025 : " + window.location.href)}`, "_blank");
+  };
+  const handleTwitter = () => {
+    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent("Classement Meta Miss Master 2025")}&url=${encodeURIComponent(window.location.href)}`, "_blank");
+  };
 
   return (
     <div className="page-content fade-up">
       <style>{`
-        /* ─── CANDIDATES PAGE REDESIGN ─── */
-        .cand-page-header {
-          padding: 20px 16px 12px;
-          text-align: center;
+        /* ═══════════════════════════════════
+           RANKING PAGE — REDESIGN
+        ═══════════════════════════════════ */
+
+        /* Page header */
+        .rk-header {
+          padding: 20px 16px 16px;
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 12px;
         }
-        .cand-page-header .crown-icon {
-          color: var(--blue);
-          margin-bottom: 6px;
-        }
-        .cand-page-header h1 {
-          font-size: 1.35rem;
-          font-weight: 800;
-          color: var(--blue);
-          letter-spacing: 0.05em;
-          text-transform: uppercase;
+        .rk-header-left h1 {
+          font-size: 1.3rem;
+          font-weight: 900;
+          color: var(--text);
+          line-height: 1.2;
           margin-bottom: 4px;
         }
-        .cand-page-header p {
-          font-size: 0.8rem;
-          color: var(--text-muted);
-        }
-        .cand-search-wrap {
-          padding: 0 16px 12px;
-        }
-        .cand-search-inner {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          background: var(--bg-white);
-          border: 1.5px solid var(--border);
-          border-radius: 14px;
-          padding: 10px 14px;
-          box-shadow: var(--shadow);
-        }
-        .cand-search-inner input {
-          flex: 1;
-          border: none;
-          background: none;
-          font-size: 0.88rem;
-          color: var(--text);
-          font-family: var(--font);
-          outline: none;
-        }
-        .cand-search-inner input::placeholder { color: var(--text-faint); }
-        .cand-filter-row {
-          display: flex;
-          gap: 8px;
-          padding: 0 16px 16px;
-        }
-        .cand-chip {
-          padding: 7px 18px;
-          border-radius: 100px;
+        .rk-header-sub {
           font-size: 0.78rem;
-          font-weight: 700;
-          cursor: pointer;
-          border: 1.5px solid var(--border);
-          background: var(--bg-white);
           color: var(--text-muted);
-          transition: all 0.18s;
-          font-family: var(--font);
         }
-        .cand-chip.active {
+        .rk-edition-badge {
+          display: inline-block;
           background: var(--blue);
           color: #fff;
-          border-color: var(--blue);
+          font-size: 0.62rem;
+          font-weight: 800;
+          letter-spacing: 0.1em;
+          padding: 4px 10px;
+          border-radius: 6px;
+          text-transform: uppercase;
+          white-space: nowrap;
+          flex-shrink: 0;
+          align-self: flex-start;
+          margin-top: 3px;
+        }
+
+        /* Tabs */
+        .rk-tabs {
+          display: flex;
+          gap: 0;
+          background: var(--bg);
+          border-radius: 14px;
+          margin: 0 16px 20px;
+          padding: 4px;
+          border: 1.5px solid var(--border);
+        }
+        .rk-tab {
+          flex: 1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          padding: 11px 0;
+          border-radius: 10px;
+          font-size: 0.88rem;
+          font-weight: 700;
+          border: none;
+          cursor: pointer;
+          font-family: var(--font);
+          transition: all 0.2s;
+          color: var(--text-muted);
+          background: transparent;
+        }
+        .rk-tab.active {
+          background: var(--blue);
+          color: #fff;
           box-shadow: 0 4px 12px rgba(37,99,235,0.3);
         }
 
-        /* Grid layout for tablet/desktop */
-        .cand-grid {
-          padding: 0 16px;
-          display: grid;
-          grid-template-columns: 1fr;
-          gap: 10px;
-        }
-        @media (min-width: 540px) {
-          .cand-grid {
-            grid-template-columns: 1fr 1fr;
-          }
-        }
-        @media (min-width: 900px) {
-          .cand-grid {
-            grid-template-columns: repeat(3, 1fr);
-            gap: 14px;
-            padding: 0 24px;
-          }
-        }
-
-        /* Card style */
-        .cand-card {
+        /* Table card */
+        .rk-table-card {
+          margin: 0 16px 16px;
           background: var(--bg-white);
+          border: 1.5px solid var(--border);
           border-radius: 18px;
           overflow: hidden;
-          border: 1px solid var(--border);
           box-shadow: var(--shadow);
-          text-decoration: none;
-          display: block;
-          transition: transform 0.2s, box-shadow 0.2s;
-          position: relative;
         }
-        .cand-card:hover {
-          transform: translateY(-3px);
-          box-shadow: var(--shadow-lg);
-        }
-        .cand-card-img-wrap {
-          position: relative;
-          aspect-ratio: 3/4;
+
+        /* Table header */
+        .rk-table-head {
+          display: grid;
+          grid-template-columns: 44px 1fr 80px 72px;
+          gap: 0;
+          padding: 10px 16px;
           background: var(--bg);
-          overflow: hidden;
+          border-bottom: 1px solid var(--border);
         }
-        .cand-card-img-wrap img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-          transition: transform 0.4s;
+        .rk-th {
+          font-size: 0.68rem;
+          font-weight: 700;
+          color: var(--text-muted);
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
         }
-        .cand-card:hover .cand-card-img-wrap img {
-          transform: scale(1.04);
+        .rk-th.right { text-align: right; }
+
+        /* Table rows */
+        .rk-row {
+          display: grid;
+          grid-template-columns: 44px 1fr 80px 72px;
+          gap: 0;
+          align-items: center;
+          padding: 12px 16px;
+          border-bottom: 1px solid var(--border-light);
+          text-decoration: none;
+          transition: background 0.12s;
         }
-        .cand-card-rank {
-          position: absolute;
-          top: 10px;
-          left: 10px;
-          background: rgba(37,99,235,0.92);
-          backdrop-filter: blur(6px);
+        .rk-row:last-child { border-bottom: none; }
+        .rk-row:hover { background: var(--bg); }
+
+        /* Rank badge */
+        .rk-rank {
+          width: 28px; height: 28px;
+          border-radius: 50%;
+          display: flex; align-items: center; justify-content: center;
+          font-size: 0.75rem;
+          font-weight: 800;
           color: #fff;
-          font-size: 0.72rem;
-          font-weight: 800;
-          padding: 5px 10px;
-          border-radius: 10px;
+          flex-shrink: 0;
+        }
+
+        /* Candidate cell */
+        .rk-cand-cell {
           display: flex;
           align-items: center;
-          gap: 4px;
-          letter-spacing: 0.03em;
+          gap: 10px;
+          min-width: 0;
         }
-        .cand-card-rank.gold { background: rgba(245,158,11,0.92); }
-        .cand-card-rank.silver { background: rgba(156,163,175,0.92); }
-        .cand-card-rank.bronze { background: rgba(217,119,6,0.92); }
-        .cand-card-votes {
-          position: absolute;
-          top: 10px;
-          right: 10px;
-          background: rgba(255,255,255,0.92);
-          backdrop-filter: blur(6px);
-          color: var(--blue);
-          font-size: 0.72rem;
-          font-weight: 800;
-          padding: 5px 10px;
+        .rk-cand-photo {
+          width: 44px; height: 44px;
           border-radius: 10px;
-          display: flex;
-          align-items: center;
-          gap: 4px;
+          object-fit: cover;
+          flex-shrink: 0;
+          background: var(--bg);
         }
-        .cand-card-body {
-          padding: 12px 14px 14px;
-        }
-        .cand-card-name {
-          font-size: 1rem;
-          font-weight: 800;
+        .rk-cand-name {
+          font-size: 0.85rem;
+          font-weight: 700;
           color: var(--text);
-          margin-bottom: 3px;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
+          margin-bottom: 4px;
         }
-        .cand-card-cat {
-          display: inline-flex;
-          align-items: center;
-          gap: 5px;
-          background: var(--blue-light);
-          color: var(--blue);
-          font-size: 0.68rem;
-          font-weight: 700;
-          padding: 4px 10px;
-          border-radius: 8px;
-          margin-bottom: 10px;
-          text-transform: uppercase;
-          letter-spacing: 0.04em;
+        .rk-progress {
+          height: 4px;
+          background: var(--blue-mid);
+          border-radius: 100px;
+          overflow: hidden;
+          max-width: 120px;
         }
-        .cand-card-actions {
-          display: flex;
-          gap: 8px;
-          align-items: center;
-        }
-        .cand-card-vote-btn {
-          flex: 1;
+        .rk-progress-fill {
+          height: 100%;
           background: var(--blue);
-          color: #fff;
-          border: none;
-          border-radius: 10px;
-          font-size: 0.75rem;
-          font-weight: 700;
-          padding: 9px 12px;
-          cursor: pointer;
-          font-family: var(--font);
-          text-decoration: none;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 5px;
-          transition: background 0.15s;
+          border-radius: 100px;
+          transition: width 0.8s ease;
         }
-        .cand-card-vote-btn:hover { background: var(--blue-hover); }
-        .cand-card-heart {
-          width: 36px;
-          height: 36px;
-          border-radius: 10px;
-          border: 1.5px solid var(--border);
-          background: var(--bg-white);
+
+        /* Percentage cell */
+        .rk-pct {
+          font-size: 0.95rem;
+          font-weight: 800;
+          color: var(--blue);
+          text-align: right;
+        }
+
+        /* Votes cell */
+        .rk-votes {
+          font-size: 0.82rem;
+          font-weight: 700;
+          color: var(--text);
+          text-align: right;
+        }
+        .rk-votes-sub {
+          font-size: 0.62rem;
+          color: var(--text-muted);
+          font-weight: 500;
+        }
+
+        /* Live badge */
+        .rk-live-row {
           display: flex;
           align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          transition: all 0.18s;
+          gap: 8px;
+          padding: 10px 16px;
+          margin: 0 16px 16px;
+          background: var(--bg-white);
+          border: 1.5px solid var(--border);
+          border-radius: 12px;
+          font-size: 0.78rem;
+          color: var(--text-muted);
+          box-shadow: var(--shadow);
+        }
+        .rk-live-dot {
+          width: 8px; height: 8px;
+          border-radius: 50%;
+          background: var(--border);
           flex-shrink: 0;
         }
-        .cand-card-heart:hover { border-color: #EF4444; }
-        .cand-card-heart.liked { border-color: #EF4444; background: #FEF2F2; }
+        .rk-live-dot.on {
+          background: #10B981;
+          animation: live-pulse 1.5s infinite;
+        }
+        @keyframes live-pulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
 
-        /* Skeleton */
-        .cand-skel {
+        /* Share card */
+        .rk-share-card {
+          margin: 0 16px 24px;
+          background: var(--bg-white);
+          border: 1.5px solid var(--border);
           border-radius: 18px;
-          overflow: hidden;
-          border: 1px solid var(--border);
+          padding: 18px 18px 16px;
+          box-shadow: var(--shadow);
         }
-        .cand-skel-img {
-          aspect-ratio: 3/4;
+        .rk-share-title {
+          font-size: 0.9rem;
+          font-weight: 800;
+          color: var(--blue);
+          margin-bottom: 4px;
         }
-        .cand-skel-body {
-          padding: 12px 14px 14px;
+        .rk-share-sub {
+          font-size: 0.75rem;
+          color: var(--text-muted);
+          margin-bottom: 14px;
+        }
+        .rk-share-btns {
+          display: flex;
+          gap: 8px;
+          flex-wrap: wrap;
+        }
+        .rk-share-btn {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 5px;
+          cursor: pointer;
+          font-size: 0.65rem;
+          color: var(--text-muted);
+          font-weight: 600;
+          background: none;
+          border: none;
+          font-family: var(--font);
+        }
+        .rk-share-btn-icon {
+          width: 44px; height: 44px;
+          border-radius: 14px;
+          display: flex; align-items: center; justify-content: center;
+          background: var(--bg);
+          border: 1.5px solid var(--border);
+          transition: all 0.15s;
+        }
+        .rk-share-btn:hover .rk-share-btn-icon {
+          background: var(--blue-light);
+          border-color: var(--blue-mid);
+        }
+        /* Desktop: share btns inline */
+        @media (min-width: 640px) {
+          .rk-share-btns-desktop { display: flex; gap: 10px; align-items: center; }
+          .rk-share-btn-desktop {
+            display: flex; align-items: center; gap: 8px;
+            padding: 10px 18px; border-radius: 12px;
+            border: 1.5px solid var(--border);
+            background: var(--bg-white);
+            font-size: 0.78rem; font-weight: 600;
+            color: var(--text);
+            cursor: pointer; font-family: var(--font);
+            transition: all 0.15s;
+          }
+          .rk-share-btn-desktop:hover { background: var(--bg); border-color: var(--blue); color: var(--blue); }
         }
 
-        /* List style for mobile (optional override) */
-        @media (max-width: 539px) {
-          .cand-grid {
-            padding: 0 12px;
-            gap: 8px;
-          }
-          .cand-card-img-wrap {
-            aspect-ratio: 3/4;
-          }
-          .cand-card-votes {
-            font-size: 0.68rem;
-            padding: 4px 8px;
-          }
-          .cand-card-rank {
-            font-size: 0.68rem;
-            padding: 4px 8px;
-          }
+        /* Skeleton rows */
+        .rk-skel-row {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 12px 16px;
+          border-bottom: 1px solid var(--border-light);
+        }
+        .rk-skel-row:last-child { border-bottom: none; }
+
+        /* Mobile: compact layout with votes always visible */
+        @media (max-width: 480px) {
+          .rk-table-head { grid-template-columns: 36px 1fr 52px 54px; padding: 8px 12px; }
+          .rk-row { grid-template-columns: 36px 1fr 52px 54px; padding: 10px 12px; }
+          .rk-rank { width: 24px; height: 24px; font-size: 0.68rem; }
+          .rk-cand-photo { width: 38px; height: 38px; border-radius: 8px; }
+          .rk-cand-name { font-size: 0.78rem; }
+          .rk-pct { font-size: 0.82rem; }
+          .rk-votes { font-size: 0.75rem; }
+          .rk-votes-sub { font-size: 0.58rem; }
+          .rk-progress { max-width: 80px; }
+        }
+        @media (max-width: 360px) {
+          .rk-table-head { grid-template-columns: 32px 1fr 46px 48px; padding: 8px 10px; }
+          .rk-row { grid-template-columns: 32px 1fr 46px 48px; padding: 8px 10px; }
+          .rk-cand-photo { width: 34px; height: 34px; }
+          .rk-cand-name { font-size: 0.72rem; }
+          .rk-progress { display: none; }
         }
       `}</style>
 
-      {/* Header */}
-      <div className="cand-page-header">
-        <div className="crown-icon">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M2 19h20v2H2v-2zm18-9l-3 9H7L4 10l4 3 4-6 4 6 4-3z"/>
-          </svg>
+      {/* ── HEADER ── */}
+      <div className="rk-header">
+        <div className="rk-header-left">
+          <h1>Résultats en direct</h1>
+          <div className="rk-header-sub">
+            Classement des candidates — Catégorie {tab === "MISS" ? "Miss" : "Master"}
+          </div>
         </div>
-        <h1>Nos Candidats</h1>
-        <p>Découvrez, soutenez et faites briller vos favoris</p>
+        <span className="rk-edition-badge">Édition 2025</span>
       </div>
 
-      {/* Search */}
-      <div className="cand-search-wrap">
-        <div className="cand-search-inner">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2">
-            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-          </svg>
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t.searchPlaceholder || "Rechercher un candidat..."} />
-        </div>
-      </div>
-
-      {/* Filter chips */}
-      <div className="cand-filter-row">
-        {(["ALL", "MISS", "MASTER"] as const).map(filterOpt => (
-          <button key={filterOpt} onClick={() => setFilter(filterOpt)} className={`cand-chip${filter === filterOpt ? " active" : ""}`}>
-            {filterOpt === "ALL" ? (t.all || "Tous") : filterOpt === "MISS" ? "Miss" : "Master"}
+      {/* ── TABS ── */}
+      <div className="rk-tabs">
+        {(["MISS", "MASTER"] as const).map(tabOpt => (
+          <button key={tabOpt} onClick={() => setTab(tabOpt)} className={`rk-tab${tab === tabOpt ? " active" : ""}`}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M2 19h20v2H2v-2zm18-9l-3 9H7L4 10l4 3 4-6 4 6 4-3z"/>
+            </svg>
+            {tabOpt === "MISS" ? "Miss" : "Master"}
           </button>
         ))}
       </div>
 
-      {/* Loading skeletons */}
-      {loading && (
-        <div className="cand-grid">
-          {[1, 2, 3, 4, 5, 6].map(i => (
-            <div key={i} className="cand-skel">
-              <div className="cand-skel-img shimmer" />
-              <div className="cand-skel-body">
-                <div className="shimmer" style={{ height: 16, borderRadius: 8, marginBottom: 8 }} />
-                <div className="shimmer" style={{ height: 12, borderRadius: 8, width: "60%" }} />
-              </div>
+      {/* ── TABLE ── */}
+      <div className="rk-table-card">
+        {/* Table header */}
+        <div className="rk-table-head">
+          <div className="rk-th">#</div>
+          <div className="rk-th">Candidate</div>
+          <div className="rk-th right">Pourcentage</div>
+          <div className="rk-th right votes-col">Votes</div>
+        </div>
+
+        {/* Loading skeletons */}
+        {loading && [1, 2, 3, 4, 5].map(i => (
+          <div key={i} className="rk-skel-row">
+            <div className="shimmer" style={{ width: 28, height: 28, borderRadius: "50%", flexShrink: 0 }} />
+            <div className="shimmer" style={{ width: 44, height: 44, borderRadius: 10, flexShrink: 0 }} />
+            <div style={{ flex: 1 }}>
+              <div className="shimmer" style={{ height: 13, borderRadius: 6, marginBottom: 6, maxWidth: 140 }} />
+              <div className="shimmer" style={{ height: 4, borderRadius: 100, maxWidth: 100 }} />
             </div>
-          ))}
-        </div>
-      )}
+            <div className="shimmer" style={{ width: 36, height: 20, borderRadius: 6, marginLeft: "auto" }} />
+          </div>
+        ))}
 
-      {/* Empty state - no candidates */}
-      {!loading && candidates.length === 0 && (
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "stretch", padding: "60px 24px", textAlign: "center" }}>
-          <div style={{ fontSize: "3rem", marginBottom: 16 }}>🎭</div>
-          <div style={{ fontWeight: 800, fontSize: "1rem", color: "var(--text)", marginBottom: 8 }}>{t.noCandidatesYet}</div>
-          <div style={{ fontSize: "0.83rem", color: "var(--text-muted)", marginBottom: 28, lineHeight: 1.6 }}>{t.noCandidatesDesc}</div>
-          <CandidacyButton variant="full" />
-        </div>
-      )}
+        {/* Empty state */}
+        {!loading && current.length === 0 && (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "stretch", padding: "60px 24px", textAlign: "center" }}>
+            <div style={{ fontSize: "3rem", marginBottom: 16 }}>🏆</div>
+            <div style={{ fontWeight: 800, fontSize: "1rem", color: "var(--text)", marginBottom: 8 }}>{t.noResultsYet || "Aucun résultat"}</div>
+            <div style={{ fontSize: "0.83rem", color: "var(--text-muted)", marginBottom: 28, lineHeight: 1.6 }}>{t.noResultsDesc || "Les résultats apparaîtront ici dès les premiers votes."}</div>
+            <CandidacyButton variant="full" style={{ margin: "0 auto" }} />
+          </div>
+        )}
 
-      {/* No search results */}
-      {!loading && candidates.length > 0 && filtered.length === 0 && (
-        <div style={{ textAlign: "center", padding: "60px 20px", color: "var(--text-muted)", fontSize: "0.88rem" }}>
-          {t.noCandidateFound}
-        </div>
-      )}
+        {/* Ranking rows */}
+        {!loading && current.map((c, i) => {
+          const photo = c.photoUrl?.startsWith("http") ? c.photoUrl : `${apiBase}${c.photoUrl}`;
+          const percent = pct(c.totalVotes);
+          const rankColor = i === 0 ? "#F59E0B" : i === 1 ? "#9CA3AF" : i === 2 ? "#D97706" : "var(--blue)";
+          const vDisplay = c.totalVotes >= 1000 ? `${(c.totalVotes / 1000).toFixed(1)}K` : String(c.totalVotes);
 
-      {/* Candidate Grid */}
-      {!loading && filtered.length > 0 && (
-        <div className="cand-grid">
-          {filtered.map((c, i) => {
-            const photo = c.photoUrl?.startsWith("http") ? c.photoUrl : `${apiBase}${c.photoUrl}`;
-            const isLiked = liked.has(c.id);
-            const rank = candidates.filter(x => x.type === c.type).findIndex(x => x.id === c.id) + 1;
-            const rankClass = rank === 1 ? "gold" : rank === 2 ? "silver" : rank === 3 ? "bronze" : "";
-            return (
-              <Link key={c.id} href={`/candidates/${c.id}`} className="cand-card fade-up" style={{ animationDelay: `${i * 0.05}s` }}>
-                <div className="cand-card-img-wrap">
-                  <img src={photo} alt={c.name}
-                    onError={(e: any) => { e.target.src = "/placeholder-avatar.png"; e.target.onerror = null; }} />
-                  <div className={`cand-card-rank ${rankClass}`}>
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M2 19h20v2H2v-2zm18-9l-3 9H7L4 10l4 3 4-6 4 6 4-3z"/>
-                    </svg>
-                    #{rank}
-                  </div>
-                  {c.totalVotes >= 0 && (
-                    <div className="cand-card-votes">
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="var(--blue)" stroke="none">
-                        <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
-                      </svg>
-                      {c.totalVotes >= 1000 ? `${(c.totalVotes / 1000).toFixed(1)}K` : c.totalVotes}
-                    </div>
-                  )}
-                </div>
-                <div className="cand-card-body">
-                  <div className="cand-card-name">{c.name}</div>
-                  <div className="cand-card-cat">
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M2 19h20v2H2v-2zm18-9l-3 9H7L4 10l4 3 4-6 4 6 4-3z"/>
-                    </svg>
-                    {c.category || c.type || "Élégance"}
-                  </div>
-                  <div className="cand-card-actions">
-                    <Link href={`/vote/${c.id}`} onClick={e => e.stopPropagation()} className="cand-card-vote-btn">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
-                      </svg>
-                      {t.vote || "Voter"}
-                    </Link>
-                    <button className={`cand-card-heart${isLiked ? " liked" : ""}`} onClick={e => toggleLike(c.id, e)}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill={isLiked ? "#EF4444" : "none"} stroke={isLiked ? "#EF4444" : "#9CA3AF"} strokeWidth="2">
-                        <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
-                      </svg>
-                    </button>
+          return (
+            <Link key={c.id} href={`/candidates/${c.id}`} className="rk-row fade-up" style={{ animationDelay: `${i * 0.06}s` }}>
+              {/* Rank */}
+              <div>
+                <div className="rk-rank" style={{ background: rankColor }}>{i + 1}</div>
+              </div>
+
+              {/* Candidate */}
+              <div className="rk-cand-cell">
+                <img src={photo} alt={c.name} className="rk-cand-photo"
+                  onError={(e: any) => { e.target.src = "/placeholder-avatar.png"; e.target.onerror = null; }} />
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div className="rk-cand-name">{c.name}</div>
+                  <div className="rk-progress">
+                    <div className="rk-progress-fill" style={{ width: `${percent}%` }} />
                   </div>
                 </div>
-              </Link>
-            );
-          })}
+              </div>
+
+              {/* Percentage */}
+              <div className="rk-pct">{percent}%</div>
+
+              {/* Votes */}
+              <div className="rk-votes">
+                {vDisplay}
+                <div className="rk-votes-sub">votes</div>
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+
+      {/* ── LIVE INDICATOR ── */}
+      <div className="rk-live-row">
+        <div className={`rk-live-dot${live ? " on" : ""}`} />
+        <span>
+          {live ? "Résultats mis à jour en temps réel" : "Connexion en cours..."}
+        </span>
+      </div>
+
+      {/* ── SHARE CARD ── */}
+      <div className="rk-share-card">
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+          <div>
+            <div className="rk-share-title">Partager le classement</div>
+            <div className="rk-share-sub">Partagez ces résultats avec vos amis et votre communauté</div>
+          </div>
         </div>
-      )}
+
+        {/* Mobile: icon grid */}
+        <div className="rk-share-btns" style={{ display: "flex" }}>
+          <button className="rk-share-btn" onClick={handleShare}>
+            <div className="rk-share-btn-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-2)" strokeWidth="2">
+                <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+              </svg>
+            </div>
+            Partager
+          </button>
+          <button className="rk-share-btn" onClick={handleCopyLink}>
+            <div className="rk-share-btn-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-2)" strokeWidth="2">
+                <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/>
+                <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/>
+              </svg>
+            </div>
+            Copier le lien
+          </button>
+          <button className="rk-share-btn" onClick={handleWhatsApp}>
+            <div className="rk-share-btn-icon" style={{ background: "#E8F8F0", borderColor: "#B2ECC8" }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+            </div>
+            WhatsApp
+          </button>
+          <button className="rk-share-btn" onClick={handleTwitter}>
+            <div className="rk-share-btn-icon" style={{ background: "#E8F4FF", borderColor: "#BFDBFE" }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="#1DA1F2"><path d="M23 3a10.9 10.9 0 01-3.14 1.53 4.48 4.48 0 00-7.86 3v1A10.66 10.66 0 013 4s-4 9 5 13a11.64 11.64 0 01-7 2c9 5 20 0 20-11.5a4.5 4.5 0 00-.08-.83A7.72 7.72 0 0023 3z"/></svg>
+            </div>
+            Twitter
+          </button>
+          <button className="rk-share-btn" onClick={handleShare}>
+            <div className="rk-share-btn-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-2)" strokeWidth="2">
+                <circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>
+              </svg>
+            </div>
+            Plus
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
