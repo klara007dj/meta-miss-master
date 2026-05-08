@@ -159,15 +159,16 @@ export default function CandidateDetailPage() {
 
         /* Side cards */
         .cd-side-card {
-          flex: 0 0 80px;
-          border-radius: 16px;
+          flex: 0 0 56px;
+          border-radius: 12px;
           overflow: hidden;
           background: var(--bg);
           position: relative;
           cursor: pointer;
-          opacity: 0.6;
+          opacity: 0.55;
           transition: opacity 0.2s;
-          min-height: 200px;
+          min-height: 160px;
+          align-self: center;
         }
         .cd-side-card:hover { opacity: 0.8; }
         .cd-side-card img {
@@ -181,32 +182,32 @@ export default function CandidateDetailPage() {
           display: flex;
           flex-direction: column;
           align-items: center;
-          justify-content: center;
-          gap: 4px;
-          background: rgba(0,0,0,0.3);
+          justify-content: flex-end;
+          gap: 2px;
+          background: linear-gradient(transparent 30%, rgba(0,0,0,0.6));
           color: #fff;
+          padding-bottom: 6px;
         }
         .cd-side-card-rank {
-          font-size: 0.65rem;
+          font-size: 0.62rem;
           font-weight: 800;
           letter-spacing: 0.04em;
         }
         .cd-side-card-name {
-          font-size: 0.72rem;
+          font-size: 0.6rem;
           font-weight: 700;
           text-align: center;
-          padding: 0 4px;
+          padding: 0 3px;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          max-width: 100%;
         }
-        .cd-side-card-cat {
-          font-size: 0.6rem;
-          opacity: 0.8;
-          text-align: center;
-          padding: 0 4px;
-        }
+        .cd-side-card-cat { display: none; }
         .cd-side-card-empty {
-          flex: 0 0 80px;
-          min-height: 200px;
-          border-radius: 16px;
+          flex: 0 0 56px;
+          min-height: 160px;
+          border-radius: 12px;
           background: transparent;
         }
 
@@ -225,7 +226,7 @@ export default function CandidateDetailPage() {
         }
         .cd-main-img-wrap img {
           width: 100%;
-          aspect-ratio: 3/4;
+          aspect-ratio: 2/3;
           object-fit: cover;
           display: block;
         }
@@ -288,32 +289,34 @@ export default function CandidateDetailPage() {
         .cd-social-row {
           display: flex;
           align-items: center;
-          gap: 8px;
+          gap: 6px;
           flex-wrap: wrap;
         }
         .cd-social-btn {
-          width: 36px; height: 36px;
+          width: 32px; height: 32px;
           border-radius: 50%;
           border: none;
           cursor: pointer;
           display: flex; align-items: center; justify-content: center;
           transition: transform 0.15s;
+          flex-shrink: 0;
         }
         .cd-social-btn:hover { transform: scale(1.1); }
         .cd-share-btn {
-          margin-left: auto;
-          display: flex; align-items: center; gap: 6px;
-          padding: 8px 14px;
+          display: flex; align-items: center; gap: 5px;
+          padding: 7px 12px;
           background: rgba(255,255,255,0.15);
           backdrop-filter: blur(4px);
           border: 1px solid rgba(255,255,255,0.3);
           border-radius: 10px;
           color: #fff;
-          font-size: 0.75rem;
+          font-size: 0.72rem;
           font-weight: 700;
           cursor: pointer;
           font-family: var(--font);
           transition: background 0.15s;
+          white-space: nowrap;
+          margin-left: auto;
         }
         .cd-share-btn:hover { background: rgba(255,255,255,0.25); }
 
@@ -525,12 +528,13 @@ export default function CandidateDetailPage() {
           }
           .cd-side-card {
             flex: 0 0 100px;
-            min-height: 280px;
+            min-height: 260px;
           }
           .cd-side-card-empty {
             flex: 0 0 100px;
-            min-height: 280px;
+            min-height: 260px;
           }
+          .cd-side-card-cat { display: block; }
           .cd-main-img-wrap img {
             aspect-ratio: 2/3;
           }
@@ -547,12 +551,12 @@ export default function CandidateDetailPage() {
             padding: 0 20px 20px;
           }
           .cd-side-card {
-            flex: 0 0 90px;
-            min-height: 240px;
+            flex: 0 0 72px;
+            min-height: 200px;
           }
           .cd-side-card-empty {
-            flex: 0 0 90px;
-            min-height: 240px;
+            flex: 0 0 72px;
+            min-height: 200px;
           }
         }
       `}</style>
