@@ -7,30 +7,65 @@ import { useT } from "@/store/langStore";
 import CandidacyButton from "@/components/CandidacyButton";
 import toast from "react-hot-toast";
 
-interface RC { id: string; name: string; city: string; photoUrl: string; totalVotes: number; rank: number; }
+interface RC {
+  id: string;
+  name: string;
+  city: string;
+  photoUrl: string;
+  totalVotes: number;
+  rank: number;
+}
+
+interface TopVoter {
+  username: string;
+  totalVotes: number;
+  candidateName: string;
+  candidateType: "MISS" | "MASTER";
+}
 
 export default function RankingPage() {
   const t = useT();
   const [tab, setTab] = useState<"MISS" | "MASTER">("MISS");
   const [miss, setMiss] = useState<RC[]>([]);
   const [master, setMaster] = useState<RC[]>([]);
+  const [topVoters, setTopVoters] = useState<TopVoter[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingVoters, setLoadingVoters] = useState(true);
   const [live, setLive] = useState(false);
-  const apiBase = process.env.NEXT_PUBLIC_API_URL?.replace("/api", "") || "http://localhost:5000";
+  const apiBase =
+    process.env.NEXT_PUBLIC_API_URL?.replace("/api", "") ||
+    "http://localhost:5000";
 
   useEffect(() => {
     Promise.all([
-      api.get("/ranking?type=MISS").then(r => setMiss(r.data.data || [])),
-      api.get("/ranking?type=MASTER").then(r => setMaster(r.data.data || [])),
+      api.get("/ranking?type=MISS").then((r) => setMiss(r.data.data || [])),
+      api.get("/ranking?type=MASTER").then((r) => setMaster(r.data.data || [])),
+      api
+        .get("/ranking/top-voters")
+        .then((r) => setTopVoters(r.data.data || []))
+        .catch(() => {})
+        .finally(() => setLoadingVoters(false)),
     ])
       .catch(() => {})
       .finally(() => setLoading(false));
 
-    const socket = io(process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:5000", { transports: ["websocket"] });
-    socket.on("connect", () => { setLive(true); socket.emit("join:ranking"); });
+    const socket = io(
+      process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:5000",
+      { transports: ["websocket"] }
+    );
+    socket.on("connect", () => {
+      setLive(true);
+      socket.emit("join:ranking");
+    });
     socket.on("disconnect", () => setLive(false));
-    socket.on("ranking:update", (d) => { setMiss(d.miss || []); setMaster(d.master || []); });
-    return () => { socket.disconnect(); };
+    socket.on("ranking:update", (d) => {
+      setMiss(d.miss || []);
+      setMaster(d.master || []);
+      if (d.topVoters) setTopVoters(d.topVoters);
+    });
+    return () => {
+      socket.disconnect();
+    };
   }, []);
 
   const current = tab === "MISS" ? miss : master;
@@ -40,7 +75,9 @@ export default function RankingPage() {
   const handleShare = async () => {
     const url = window.location.href;
     if (navigator.share) {
-      try { await navigator.share({ title: "Meta Miss Master — Classement", url }); } catch { }
+      try {
+        await navigator.share({ title: "Meta Miss Master — Classement", url });
+      } catch {}
     } else {
       await navigator.clipboard.writeText(url);
       toast.success("Lien copié !");
@@ -51,10 +88,20 @@ export default function RankingPage() {
     toast.success("Lien copié !");
   };
   const handleWhatsApp = () => {
-    window.open(`https://wa.me/?text=${encodeURIComponent("Classement Meta Miss Master 2025 : " + window.location.href)}`, "_blank");
+    window.open(
+      `https://wa.me/?text=${encodeURIComponent(
+        "Classement Meta Miss Master 2025 : " + window.location.href
+      )}`,
+      "_blank"
+    );
   };
   const handleTwitter = () => {
-    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent("Classement Meta Miss Master 2025")}&url=${encodeURIComponent(window.location.href)}`, "_blank");
+    window.open(
+      `https://twitter.com/intent/tweet?text=${encodeURIComponent(
+        "Classement Meta Miss Master 2025"
+      )}&url=${encodeURIComponent(window.location.href)}`,
+      "_blank"
+    );
   };
 
   return (
@@ -269,6 +316,178 @@ export default function RankingPage() {
         }
         @keyframes live-pulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
 
+        /* ═══════════════════════════════════
+           TOP VOTANTS
+        ═══════════════════════════════════ */
+        .tv-card {
+          margin: 0 16px 16px;
+          background: var(--bg-white);
+          border: 1.5px solid var(--border);
+          border-radius: 18px;
+          overflow: hidden;
+          box-shadow: var(--shadow);
+        }
+        .tv-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 14px 16px 12px;
+          background: var(--bg);
+          border-bottom: 1px solid var(--border);
+        }
+        .tv-header-left {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 0.95rem;
+          font-weight: 900;
+          color: var(--text);
+        }
+        .tv-live-badge {
+          font-size: 0.6rem;
+          font-weight: 800;
+          background: #10B981;
+          color: #fff;
+          padding: 3px 9px;
+          border-radius: 6px;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          display: flex;
+          align-items: center;
+          gap: 5px;
+        }
+        .tv-live-badge-dot {
+          width: 6px; height: 6px;
+          border-radius: 50%;
+          background: #fff;
+          animation: live-pulse 1.5s infinite;
+          flex-shrink: 0;
+        }
+        .tv-row {
+          display: grid;
+          grid-template-columns: 40px 1fr auto;
+          align-items: center;
+          gap: 10px;
+          padding: 11px 16px;
+          border-bottom: 1px solid var(--border-light);
+          transition: background 0.12s;
+        }
+        .tv-row:last-child { border-bottom: none; }
+        .tv-row:hover { background: var(--bg); }
+        .tv-rank-cell {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+        .tv-rank-medal {
+          font-size: 1.3rem;
+          line-height: 1;
+        }
+        .tv-rank-number {
+          width: 26px; height: 26px;
+          border-radius: 50%;
+          display: flex; align-items: center; justify-content: center;
+          font-size: 0.72rem;
+          font-weight: 800;
+          background: var(--bg);
+          color: var(--text-muted);
+          border: 1.5px solid var(--border);
+        }
+        .tv-user-info { min-width: 0; }
+        .tv-username {
+          font-size: 0.85rem;
+          font-weight: 700;
+          color: var(--text);
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          margin-bottom: 4px;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+        .tv-voted-for {
+          display: flex;
+          align-items: center;
+          gap: 5px;
+          font-size: 0.7rem;
+          color: var(--text-muted);
+          flex-wrap: wrap;
+        }
+        .tv-candidate-chip {
+          display: inline-flex;
+          align-items: center;
+          gap: 3px;
+          background: var(--bg);
+          border: 1px solid var(--border);
+          border-radius: 20px;
+          padding: 1px 8px;
+          font-weight: 700;
+          color: var(--text);
+          font-size: 0.68rem;
+          max-width: 110px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .tv-type-badge-miss {
+          font-size: 0.58rem;
+          font-weight: 800;
+          background: #EFF6FF;
+          color: #2563EB;
+          padding: 2px 6px;
+          border-radius: 4px;
+          letter-spacing: 0.04em;
+          flex-shrink: 0;
+        }
+        .tv-type-badge-master {
+          font-size: 0.58rem;
+          font-weight: 800;
+          background: #F0FDF4;
+          color: #16A34A;
+          padding: 2px 6px;
+          border-radius: 4px;
+          letter-spacing: 0.04em;
+          flex-shrink: 0;
+        }
+        .tv-votes-right {
+          text-align: right;
+          flex-shrink: 0;
+        }
+        .tv-vote-count {
+          font-size: 1rem;
+          font-weight: 900;
+          color: var(--text);
+          line-height: 1.1;
+        }
+        .tv-vote-label {
+          font-size: 0.6rem;
+          color: var(--text-muted);
+          font-weight: 500;
+        }
+        .tv-empty {
+          padding: 44px 24px;
+          text-align: center;
+        }
+        .tv-skel-row {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 11px 16px;
+          border-bottom: 1px solid var(--border-light);
+        }
+        .tv-skel-row:last-child { border-bottom: none; }
+
+        /* Mobile responsive top votants */
+        @media (max-width: 480px) {
+          .tv-row { grid-template-columns: 34px 1fr auto; gap: 8px; padding: 10px 12px; }
+          .tv-rank-medal { font-size: 1.1rem; }
+          .tv-username { font-size: 0.78rem; }
+          .tv-vote-count { font-size: 0.9rem; }
+          .tv-candidate-chip { max-width: 90px; }
+        }
+
         /* Share card */
         .rk-share-card {
           margin: 0 16px 24px;
@@ -319,21 +538,6 @@ export default function RankingPage() {
           background: var(--blue-light);
           border-color: var(--blue-mid);
         }
-        /* Desktop: share btns inline */
-        @media (min-width: 640px) {
-          .rk-share-btns-desktop { display: flex; gap: 10px; align-items: center; }
-          .rk-share-btn-desktop {
-            display: flex; align-items: center; gap: 8px;
-            padding: 10px 18px; border-radius: 12px;
-            border: 1.5px solid var(--border);
-            background: var(--bg-white);
-            font-size: 0.78rem; font-weight: 600;
-            color: var(--text);
-            cursor: pointer; font-family: var(--font);
-            transition: all 0.15s;
-          }
-          .rk-share-btn-desktop:hover { background: var(--bg); border-color: var(--blue); color: var(--blue); }
-        }
 
         /* Skeleton rows */
         .rk-skel-row {
@@ -345,7 +549,7 @@ export default function RankingPage() {
         }
         .rk-skel-row:last-child { border-bottom: none; }
 
-        /* Mobile: compact layout with votes always visible */
+        /* Mobile: compact layout */
         @media (max-width: 480px) {
           .rk-table-head { grid-template-columns: 36px 1fr 52px 54px; padding: 8px 12px; }
           .rk-row { grid-template-columns: 36px 1fr 52px 54px; padding: 10px 12px; }
@@ -371,7 +575,8 @@ export default function RankingPage() {
         <div className="rk-header-left">
           <h1>Résultats en direct</h1>
           <div className="rk-header-sub">
-            Classement des candidates — Catégorie {tab === "MISS" ? "Miss" : "Master"}
+            Classement des candidates — Catégorie{" "}
+            {tab === "MISS" ? "Miss" : "Master"}
           </div>
         </div>
         <span className="rk-edition-badge">Édition 2025</span>
@@ -379,10 +584,19 @@ export default function RankingPage() {
 
       {/* ── TABS ── */}
       <div className="rk-tabs">
-        {(["MISS", "MASTER"] as const).map(tabOpt => (
-          <button key={tabOpt} onClick={() => setTab(tabOpt)} className={`rk-tab${tab === tabOpt ? " active" : ""}`}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M2 19h20v2H2v-2zm18-9l-3 9H7L4 10l4 3 4-6 4 6 4-3z"/>
+        {(["MISS", "MASTER"] as const).map((tabOpt) => (
+          <button
+            key={tabOpt}
+            onClick={() => setTab(tabOpt)}
+            className={`rk-tab${tab === tabOpt ? " active" : ""}`}
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+            >
+              <path d="M2 19h20v2H2v-2zm18-9l-3 9H7L4 10l4 3 4-6 4 6 4-3z" />
             </svg>
             {tabOpt === "MISS" ? "Miss" : "Master"}
           </button>
@@ -396,124 +610,437 @@ export default function RankingPage() {
           <div className="rk-th">#</div>
           <div className="rk-th">Candidate</div>
           <div className="rk-th right">Pourcentage</div>
-          <div className="rk-th right votes-col">Votes</div>
+          <div className="rk-th right">Votes</div>
         </div>
 
         {/* Loading skeletons */}
-        {loading && [1, 2, 3, 4, 5].map(i => (
-          <div key={i} className="rk-skel-row">
-            <div className="shimmer" style={{ width: 28, height: 28, borderRadius: "50%", flexShrink: 0 }} />
-            <div className="shimmer" style={{ width: 44, height: 44, borderRadius: 10, flexShrink: 0 }} />
-            <div style={{ flex: 1 }}>
-              <div className="shimmer" style={{ height: 13, borderRadius: 6, marginBottom: 6, maxWidth: 140 }} />
-              <div className="shimmer" style={{ height: 4, borderRadius: 100, maxWidth: 100 }} />
+        {loading &&
+          [1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="rk-skel-row">
+              <div
+                className="shimmer"
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: "50%",
+                  flexShrink: 0,
+                }}
+              />
+              <div
+                className="shimmer"
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 10,
+                  flexShrink: 0,
+                }}
+              />
+              <div style={{ flex: 1 }}>
+                <div
+                  className="shimmer"
+                  style={{
+                    height: 13,
+                    borderRadius: 6,
+                    marginBottom: 6,
+                    maxWidth: 140,
+                  }}
+                />
+                <div
+                  className="shimmer"
+                  style={{ height: 4, borderRadius: 100, maxWidth: 100 }}
+                />
+              </div>
+              <div
+                className="shimmer"
+                style={{
+                  width: 36,
+                  height: 20,
+                  borderRadius: 6,
+                  marginLeft: "auto",
+                }}
+              />
             </div>
-            <div className="shimmer" style={{ width: 36, height: 20, borderRadius: 6, marginLeft: "auto" }} />
-          </div>
-        ))}
+          ))}
 
         {/* Empty state */}
         {!loading && current.length === 0 && (
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "stretch", padding: "60px 24px", textAlign: "center" }}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "stretch",
+              padding: "60px 24px",
+              textAlign: "center",
+            }}
+          >
             <div style={{ fontSize: "3rem", marginBottom: 16 }}>🏆</div>
-            <div style={{ fontWeight: 800, fontSize: "1rem", color: "var(--text)", marginBottom: 8 }}>{t.noResultsYet || "Aucun résultat"}</div>
-            <div style={{ fontSize: "0.83rem", color: "var(--text-muted)", marginBottom: 28, lineHeight: 1.6 }}>{t.noResultsDesc || "Les résultats apparaîtront ici dès les premiers votes."}</div>
+            <div
+              style={{
+                fontWeight: 800,
+                fontSize: "1rem",
+                color: "var(--text)",
+                marginBottom: 8,
+              }}
+            >
+              {t.noResultsYet || "Aucun résultat"}
+            </div>
+            <div
+              style={{
+                fontSize: "0.83rem",
+                color: "var(--text-muted)",
+                marginBottom: 28,
+                lineHeight: 1.6,
+              }}
+            >
+              {t.noResultsDesc ||
+                "Les résultats apparaîtront ici dès les premiers votes."}
+            </div>
             <CandidacyButton variant="full" style={{ margin: "0 auto" }} />
           </div>
         )}
 
         {/* Ranking rows */}
-        {!loading && current.map((c, i) => {
-          const photo = c.photoUrl?.startsWith("http") ? c.photoUrl : `${apiBase}${c.photoUrl}`;
-          const percent = pct(c.totalVotes);
-          const rankColor = i === 0 ? "#F59E0B" : i === 1 ? "#9CA3AF" : i === 2 ? "#D97706" : "var(--blue)";
-          const vDisplay = c.totalVotes >= 1000 ? `${(c.totalVotes / 1000).toFixed(1)}K` : String(c.totalVotes);
+        {!loading &&
+          current.map((c, i) => {
+            const photo = c.photoUrl?.startsWith("http")
+              ? c.photoUrl
+              : `${apiBase}${c.photoUrl}`;
+            const percent = pct(c.totalVotes);
+            const rankColor =
+              i === 0
+                ? "#F59E0B"
+                : i === 1
+                ? "#9CA3AF"
+                : i === 2
+                ? "#D97706"
+                : "var(--blue)";
+            const vDisplay =
+              c.totalVotes >= 1000
+                ? `${(c.totalVotes / 1000).toFixed(1)}K`
+                : String(c.totalVotes);
 
-          return (
-            <Link key={c.id} href={`/candidates/${c.id}`} className="rk-row fade-up" style={{ animationDelay: `${i * 0.06}s` }}>
-              {/* Rank */}
-              <div>
-                <div className="rk-rank" style={{ background: rankColor }}>{i + 1}</div>
-              </div>
-
-              {/* Candidate */}
-              <div className="rk-cand-cell">
-                <img src={photo} alt={c.name} className="rk-cand-photo"
-                  onError={(e: any) => { e.target.src = "/placeholder-avatar.png"; e.target.onerror = null; }} />
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <div className="rk-cand-name">{c.name}</div>
-                  <div className="rk-progress">
-                    <div className="rk-progress-fill" style={{ width: `${percent}%` }} />
+            return (
+              <Link
+                key={c.id}
+                href={`/candidates/${c.id}`}
+                className="rk-row fade-up"
+                style={{ animationDelay: `${i * 0.06}s` }}
+              >
+                {/* Rank */}
+                <div>
+                  <div
+                    className="rk-rank"
+                    style={{ background: rankColor }}
+                  >
+                    {i + 1}
                   </div>
                 </div>
-              </div>
 
-              {/* Percentage */}
-              <div className="rk-pct">{percent}%</div>
+                {/* Candidate */}
+                <div className="rk-cand-cell">
+                  <img
+                    src={photo}
+                    alt={c.name}
+                    className="rk-cand-photo"
+                    onError={(e: any) => {
+                      e.target.src = "/placeholder-avatar.png";
+                      e.target.onerror = null;
+                    }}
+                  />
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div className="rk-cand-name">{c.name}</div>
+                    <div className="rk-progress">
+                      <div
+                        className="rk-progress-fill"
+                        style={{ width: `${percent}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
 
-              {/* Votes */}
-              <div className="rk-votes">
-                {vDisplay}
-                <div className="rk-votes-sub">votes</div>
-              </div>
-            </Link>
-          );
-        })}
+                {/* Percentage */}
+                <div className="rk-pct">{percent}%</div>
+
+                {/* Votes */}
+                <div className="rk-votes">
+                  {vDisplay}
+                  <div className="rk-votes-sub">votes</div>
+                </div>
+              </Link>
+            );
+          })}
       </div>
 
       {/* ── LIVE INDICATOR ── */}
       <div className="rk-live-row">
         <div className={`rk-live-dot${live ? " on" : ""}`} />
         <span>
-          {live ? "Résultats mis à jour en temps réel" : "Connexion en cours..."}
+          {live
+            ? "Résultats mis à jour en temps réel"
+            : "Connexion en cours..."}
         </span>
+      </div>
+
+      {/* ══════════════════════════════════════
+          ── TOP VOTANTS ──
+      ══════════════════════════════════════ */}
+      <div className="tv-card">
+        {/* Header */}
+        <div className="tv-header">
+          <div className="tv-header-left">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="#F59E0B"
+              aria-hidden="true"
+            >
+              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+            </svg>
+            Top votants
+          </div>
+          <div className="tv-live-badge">
+            <div className="tv-live-badge-dot" />
+            Live
+          </div>
+        </div>
+
+        {/* Loading skeletons */}
+        {loadingVoters &&
+          [1, 2, 3].map((i) => (
+            <div key={i} className="tv-skel-row">
+              <div
+                className="shimmer"
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: "50%",
+                  flexShrink: 0,
+                }}
+              />
+              <div style={{ flex: 1 }}>
+                <div
+                  className="shimmer"
+                  style={{
+                    height: 13,
+                    borderRadius: 6,
+                    marginBottom: 6,
+                    maxWidth: 120,
+                  }}
+                />
+                <div
+                  className="shimmer"
+                  style={{ height: 11, borderRadius: 6, maxWidth: 160 }}
+                />
+              </div>
+              <div
+                className="shimmer"
+                style={{
+                  width: 32,
+                  height: 20,
+                  borderRadius: 6,
+                  flexShrink: 0,
+                }}
+              />
+            </div>
+          ))}
+
+        {/* Empty state */}
+        {!loadingVoters && topVoters.length === 0 && (
+          <div className="tv-empty">
+            <div style={{ fontSize: "2.2rem", marginBottom: 10 }}>🗳️</div>
+            <div
+              style={{
+                fontWeight: 800,
+                fontSize: "0.9rem",
+                color: "var(--text)",
+                marginBottom: 6,
+              }}
+            >
+              Aucun votant pour l'instant
+            </div>
+            <div
+              style={{
+                fontSize: "0.78rem",
+                color: "var(--text-muted)",
+                lineHeight: 1.6,
+              }}
+            >
+              Les top votants apparaîtront ici dès les premiers votes.
+            </div>
+          </div>
+        )}
+
+        {/* Voter rows */}
+        {!loadingVoters &&
+          topVoters.map((v, i) => {
+            const medals = ["🥇", "🥈", "🥉"];
+            const isMiss = v.candidateType === "MISS";
+            const vDisplay =
+              v.totalVotes >= 1000
+                ? `${(v.totalVotes / 1000).toFixed(1)}K`
+                : String(v.totalVotes);
+
+            return (
+              <div
+                key={`${v.username}-${i}`}
+                className="tv-row fade-up"
+                style={{ animationDelay: `${i * 0.05}s` }}
+              >
+                {/* Rang */}
+                <div className="tv-rank-cell">
+                  {i < 3 ? (
+                    <span className="tv-rank-medal">{medals[i]}</span>
+                  ) : (
+                    <div className="tv-rank-number">{i + 1}</div>
+                  )}
+                </div>
+
+                {/* Infos utilisateur */}
+                <div className="tv-user-info">
+                  <div className="tv-username">
+                    <svg
+                      width="13"
+                      height="13"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="var(--text-muted)"
+                      strokeWidth="2"
+                      aria-hidden="true"
+                      style={{ flexShrink: 0 }}
+                    >
+                      <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+                      <circle cx="12" cy="7" r="4" />
+                    </svg>
+                    {v.username}
+                  </div>
+                  <div className="tv-voted-for">
+                    <span>Vote pour</span>
+                    <span className="tv-candidate-chip">
+                      <svg
+                        width="9"
+                        height="9"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        aria-hidden="true"
+                      >
+                        <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+                        <circle cx="12" cy="7" r="4" />
+                      </svg>
+                      {v.candidateName}
+                    </span>
+                    <span
+                      className={
+                        isMiss ? "tv-type-badge-miss" : "tv-type-badge-master"
+                      }
+                    >
+                      {v.candidateType}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Nombre de votes */}
+                <div className="tv-votes-right">
+                  <div className="tv-vote-count">{vDisplay}</div>
+                  <div className="tv-vote-label">votes</div>
+                </div>
+              </div>
+            );
+          })}
       </div>
 
       {/* ── SHARE CARD ── */}
       <div className="rk-share-card">
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            gap: 12,
+            flexWrap: "wrap",
+          }}
+        >
           <div>
             <div className="rk-share-title">Partager le classement</div>
-            <div className="rk-share-sub">Partagez ces résultats avec vos amis et votre communauté</div>
+            <div className="rk-share-sub">
+              Partagez ces résultats avec vos amis et votre communauté
+            </div>
           </div>
         </div>
 
-        {/* Mobile: icon grid */}
         <div className="rk-share-btns" style={{ display: "flex" }}>
           <button className="rk-share-btn" onClick={handleShare}>
             <div className="rk-share-btn-icon">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-2)" strokeWidth="2">
-                <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
-                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="var(--text-2)"
+                strokeWidth="2"
+              >
+                <circle cx="18" cy="5" r="3" />
+                <circle cx="6" cy="12" r="3" />
+                <circle cx="18" cy="19" r="3" />
+                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
               </svg>
             </div>
             Partager
           </button>
           <button className="rk-share-btn" onClick={handleCopyLink}>
             <div className="rk-share-btn-icon">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-2)" strokeWidth="2">
-                <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/>
-                <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/>
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="var(--text-2)"
+                strokeWidth="2"
+              >
+                <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" />
+                <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" />
               </svg>
             </div>
             Copier le lien
           </button>
           <button className="rk-share-btn" onClick={handleWhatsApp}>
-            <div className="rk-share-btn-icon" style={{ background: "#E8F8F0", borderColor: "#B2ECC8" }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+            <div
+              className="rk-share-btn-icon"
+              style={{ background: "#E8F8F0", borderColor: "#B2ECC8" }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="#25D366">
+                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+              </svg>
             </div>
             WhatsApp
           </button>
           <button className="rk-share-btn" onClick={handleTwitter}>
-            <div className="rk-share-btn-icon" style={{ background: "#E8F4FF", borderColor: "#BFDBFE" }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="#1DA1F2"><path d="M23 3a10.9 10.9 0 01-3.14 1.53 4.48 4.48 0 00-7.86 3v1A10.66 10.66 0 013 4s-4 9 5 13a11.64 11.64 0 01-7 2c9 5 20 0 20-11.5a4.5 4.5 0 00-.08-.83A7.72 7.72 0 0023 3z"/></svg>
+            <div
+              className="rk-share-btn-icon"
+              style={{ background: "#E8F4FF", borderColor: "#BFDBFE" }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="#1DA1F2">
+                <path d="M23 3a10.9 10.9 0 01-3.14 1.53 4.48 4.48 0 00-7.86 3v1A10.66 10.66 0 013 4s-4 9 5 13a11.64 11.64 0 01-7 2c9 5 20 0 20-11.5a4.5 4.5 0 00-.08-.83A7.72 7.72 0 0023 3z" />
+              </svg>
             </div>
             Twitter
           </button>
           <button className="rk-share-btn" onClick={handleShare}>
             <div className="rk-share-btn-icon">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-2)" strokeWidth="2">
-                <circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="var(--text-2)"
+                strokeWidth="2"
+              >
+                <circle cx="12" cy="12" r="1" />
+                <circle cx="19" cy="12" r="1" />
+                <circle cx="5" cy="12" r="1" />
               </svg>
             </div>
             Plus
@@ -522,4 +1049,4 @@ export default function RankingPage() {
       </div>
     </div>
   );
-} 
+}
