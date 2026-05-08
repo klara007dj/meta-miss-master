@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import api from "@/lib/api";
 import CandidacyButton from "@/components/CandidacyButton";
 import { useT } from "@/store/langStore";
@@ -24,7 +23,6 @@ export default function HomeDashboardPage() {
     ]).finally(() => setLoadingCandidates(false));
   }, []);
 
-  // Calcul des jours restants / avant début
   const contestInfo = (() => {
     if (!contest) return { label: "—", sub: "Aucun concours", color: "#2563EB" };
     const now = new Date();
@@ -37,129 +35,461 @@ export default function HomeDashboardPage() {
     if (end) {
       const diff = Math.ceil((end.getTime() - now.getTime()) / 86400000);
       if (diff <= 0) return { label: "Terminé", sub: "Concours clôturé", color: "#94A3B8" };
-      return { label: diff, sub: "Jours restants", color: "#2563EB" };
+      return { label: diff, sub: "Avant la finale", color: "#2563EB" };
     }
     return { label: "∞", sub: "Sans date de fin", color: "#10B981" };
   })();
 
   const topAll = [...topMiss, ...topMaster].slice(0, 8);
+  const totalVotes = stats?.totalVotesCount;
+  const votesDisplay = totalVotes >= 1000 ? `${(totalVotes / 1000).toFixed(1)}K` : totalVotes ?? "—";
 
   return (
     <div className="page-content fade-up">
-      {/* Top bar */}
-      <div style={{ padding: "20px 20px 12px", background: "var(--bg-white)" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-          <div>
-            <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>{t.greeting}</div>
-            <div style={{ fontSize: "1.15rem", fontWeight: 800, color: "var(--text)", lineHeight: 1.3 }}>
-              {t.homeTitle}
+      <style>{`
+        /* ═══════════════════════════════════
+           HOME PAGE — REDESIGN
+        ═══════════════════════════════════ */
+
+        /* Hero banner */
+        .home-hero {
+          margin: 0 16px 20px;
+          border-radius: 20px;
+          overflow: hidden;
+          position: relative;
+          min-height: 200px;
+          background: linear-gradient(135deg, #1340c4 0%, #2563EB 45%, #3B82F6 100%);
+          display: flex;
+          align-items: flex-end;
+        }
+        .home-hero-bg-circle {
+          position: absolute;
+          border-radius: 50%;
+          background: rgba(255,255,255,0.07);
+        }
+        .home-hero-content {
+          position: relative;
+          z-index: 2;
+          padding: 24px 22px 22px;
+          flex: 1;
+        }
+        .home-hero-edition {
+          display: inline-block;
+          background: rgba(255,255,255,0.18);
+          color: #fff;
+          font-size: 0.65rem;
+          font-weight: 800;
+          letter-spacing: 0.12em;
+          padding: 4px 10px;
+          border-radius: 6px;
+          margin-bottom: 10px;
+          text-transform: uppercase;
+        }
+        .home-hero-title {
+          font-size: clamp(1.5rem, 5vw, 2.4rem);
+          font-weight: 900;
+          color: #fff;
+          line-height: 1.05;
+          letter-spacing: -0.01em;
+          margin-bottom: 8px;
+          text-transform: uppercase;
+        }
+        .home-hero-sub {
+          font-size: 0.78rem;
+          color: rgba(255,255,255,0.75);
+          margin-bottom: 18px;
+        }
+        .home-hero-cta {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          background: rgba(255,255,255,0.18);
+          border: 1.5px solid rgba(255,255,255,0.35);
+          color: #fff;
+          font-size: 0.8rem;
+          font-weight: 700;
+          padding: 10px 18px;
+          border-radius: 12px;
+          text-decoration: none;
+          backdrop-filter: blur(4px);
+          transition: background 0.15s;
+        }
+        .home-hero-cta:hover { background: rgba(255,255,255,0.28); }
+
+        /* Hero image — hidden on mobile, shown on tablet+ */
+        .home-hero-img {
+          display: none;
+          position: absolute;
+          right: 0; bottom: 0; top: 0;
+          width: 45%;
+          object-fit: cover;
+          object-position: top center;
+          mask-image: linear-gradient(to left, rgba(0,0,0,0.8) 60%, transparent);
+          -webkit-mask-image: linear-gradient(to left, rgba(0,0,0,0.8) 60%, transparent);
+        }
+        @media (min-width: 500px) {
+          .home-hero { min-height: 240px; }
+          .home-hero-img { display: block; }
+        }
+        @media (min-width: 1024px) {
+          .home-hero { min-height: 280px; margin: 0 0 24px; border-radius: 20px; }
+        }
+
+        /* Stats grid */
+        .home-stats-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 10px;
+          padding: 0 16px;
+          margin-bottom: 24px;
+        }
+        @media (min-width: 640px) {
+          .home-stats-grid { grid-template-columns: repeat(4, 1fr); }
+        }
+        .home-stat-card {
+          background: var(--bg-white);
+          border: 1.5px solid var(--border);
+          border-radius: 16px;
+          padding: 16px 14px;
+          box-shadow: var(--shadow);
+        }
+        .home-stat-icon-row {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          margin-bottom: 8px;
+        }
+        .home-stat-icon-wrap {
+          width: 28px; height: 28px;
+          border-radius: 8px;
+          background: var(--blue-light);
+          display: flex; align-items: center; justify-content: center;
+          flex-shrink: 0;
+        }
+        .home-stat-label {
+          font-size: 0.68rem;
+          color: var(--text-muted);
+          font-weight: 600;
+        }
+        .home-stat-value {
+          font-size: 1.6rem;
+          font-weight: 900;
+          color: var(--text);
+          line-height: 1;
+          margin-bottom: 2px;
+        }
+        .home-stat-sub {
+          font-size: 0.65rem;
+          color: var(--text-muted);
+        }
+
+        /* Section header */
+        .home-section-hd {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 0 16px;
+          margin-bottom: 12px;
+        }
+        .home-section-title {
+          font-size: 0.95rem;
+          font-weight: 800;
+          color: var(--text);
+        }
+        .home-see-all {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          font-size: 0.78rem;
+          color: var(--blue);
+          font-weight: 600;
+          text-decoration: none;
+        }
+
+        /* Candidate horizontal scroll */
+        .home-cand-scroll {
+          display: flex;
+          gap: 10px;
+          padding: 0 16px 4px;
+          overflow-x: auto;
+          scroll-snap-type: x mandatory;
+          -webkit-overflow-scrolling: touch;
+          scrollbar-width: none;
+        }
+        .home-cand-scroll::-webkit-scrollbar { display: none; }
+        .home-cand-card {
+          flex-shrink: 0;
+          scroll-snap-align: start;
+          width: 130px;
+          border-radius: 18px;
+          overflow: hidden;
+          background: var(--bg-white);
+          border: 1.5px solid var(--border);
+          box-shadow: var(--shadow);
+          text-decoration: none;
+          display: block;
+          transition: transform 0.2s;
+        }
+        .home-cand-card:hover { transform: translateY(-2px); }
+        .home-cand-img-wrap {
+          position: relative;
+          height: 160px;
+          background: var(--bg);
+          overflow: hidden;
+        }
+        .home-cand-img-wrap img {
+          width: 100%; height: 100%;
+          object-fit: cover;
+          transition: transform 0.3s;
+        }
+        .home-cand-card:hover .home-cand-img-wrap img { transform: scale(1.05); }
+        .home-cand-rank {
+          position: absolute;
+          top: 8px; left: 8px;
+          width: 24px; height: 24px;
+          border-radius: 50%;
+          display: flex; align-items: center; justify-content: center;
+          font-size: 0.7rem;
+          font-weight: 800;
+          color: #fff;
+        }
+        .home-cand-overlay {
+          position: absolute;
+          bottom: 0; left: 0; right: 0;
+          background: linear-gradient(transparent, rgba(0,0,0,0.72));
+          padding: 28px 8px 8px;
+          color: #fff;
+        }
+        .home-cand-name {
+          font-size: 0.75rem;
+          font-weight: 800;
+          line-height: 1.2;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .home-cand-type {
+          font-size: 0.62rem;
+          opacity: 0.8;
+        }
+        .home-cand-body {
+          padding: 8px 10px 10px;
+        }
+        .home-cand-votes {
+          font-size: 0.68rem;
+          color: var(--text-muted);
+          margin-bottom: 3px;
+        }
+        .home-cand-votes strong { color: var(--text); font-weight: 700; }
+        .home-cand-pct {
+          font-size: 0.75rem;
+          font-weight: 800;
+          color: var(--blue);
+        }
+        .home-cand-bar {
+          height: 3px;
+          background: var(--blue-mid);
+          border-radius: 100px;
+          margin-top: 4px;
+          overflow: hidden;
+        }
+        .home-cand-bar-fill {
+          height: 100%;
+          background: var(--blue);
+          border-radius: 100px;
+        }
+
+        /* Scroll arrows — tablet/desktop only */
+        .home-cand-scroll-wrap {
+          position: relative;
+        }
+        .home-scroll-arrow {
+          display: none;
+        }
+        @media (min-width: 640px) {
+          .home-scroll-arrow {
+            display: flex;
+            position: absolute;
+            top: 50%; transform: translateY(-60%);
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            background: var(--bg-white);
+            border: 1.5px solid var(--border);
+            box-shadow: var(--shadow-md);
+            align-items: center; justify-content: center;
+            cursor: pointer;
+            z-index: 5;
+            transition: all 0.15s;
+          }
+          .home-scroll-arrow:hover { background: var(--blue); border-color: var(--blue); }
+          .home-scroll-arrow:hover svg { stroke: #fff; }
+          .home-scroll-arrow.left { left: 4px; }
+          .home-scroll-arrow.right { right: 4px; }
+        }
+
+        /* CTA bottom banner */
+        .home-cta-banner {
+          margin: 20px 16px 0;
+          background: var(--blue-light);
+          border: 1.5px solid var(--blue-mid);
+          border-radius: 18px;
+          padding: 18px 20px;
+          display: flex;
+          align-items: center;
+          gap: 14px;
+        }
+        .home-cta-icon {
+          width: 48px; height: 48px;
+          border-radius: 50%;
+          background: var(--blue);
+          display: flex; align-items: center; justify-content: center;
+          flex-shrink: 0;
+        }
+        .home-cta-text h3 {
+          font-size: 0.9rem;
+          font-weight: 800;
+          color: var(--blue);
+          margin-bottom: 2px;
+        }
+        .home-cta-text p {
+          font-size: 0.75rem;
+          color: var(--text-muted);
+        }
+        .home-cta-btn {
+          margin-left: auto;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          background: var(--blue);
+          color: #fff;
+          font-size: 0.78rem;
+          font-weight: 700;
+          padding: 10px 16px;
+          border-radius: 12px;
+          text-decoration: none;
+          white-space: nowrap;
+          flex-shrink: 0;
+          transition: background 0.15s;
+        }
+        .home-cta-btn:hover { background: var(--blue-hover); }
+
+        @media (max-width: 420px) {
+          .home-cta-banner { flex-wrap: wrap; }
+          .home-cta-btn { margin-left: 0; width: 100%; justify-content: center; }
+        }
+      `}</style>
+
+      {/* ── HERO BANNER ── */}
+      <div className="home-hero">
+        <div className="home-hero-bg-circle" style={{ width: 220, height: 220, top: -60, right: -40 }} />
+        <div className="home-hero-bg-circle" style={{ width: 120, height: 120, bottom: -40, left: 80 }} />
+        <div className="home-hero-bg-circle" style={{ width: 60, height: 60, top: 20, left: 200 }} />
+
+        <div className="home-hero-content">
+          <span className="home-hero-edition">Édition 2025</span>
+          <div className="home-hero-title">
+            META<br />
+            MISS MASTER<br />
+            2025
+          </div>
+          <div className="home-hero-sub">Votez maintenant · Résultats en direct</div>
+          <Link href="/ranking" className="home-hero-cta">
+            Voir les résultats
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <polyline points="9 18 15 12 9 6"/>
+            </svg>
+          </Link>
+        </div>
+      </div>
+
+      {/* ── STATS GRID ── */}
+      <div className="home-stats-grid">
+        {/* Candidats */}
+        <div className="home-stat-card">
+          <div className="home-stat-icon-row">
+            <div className="home-stat-icon-wrap">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" strokeWidth="2">
+                <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+                <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>
+              </svg>
             </div>
+            <span className="home-stat-label">{t.candidates_label || "Candidats"}</span>
           </div>
-          <button style={{ width: 38, height: 38, borderRadius: "50%", border: "1px solid var(--border)", background: "var(--bg-white)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2">
-              <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" />
-            </svg>
-          </button>
+          <div className="home-stat-value">{stats?.totalCandidates ?? "—"}</div>
+          <div className="home-stat-sub">{t.inCompetition || "En compétition"}</div>
+        </div>
+
+        {/* Votes actifs */}
+        <div className="home-stat-card">
+          <div className="home-stat-icon-row">
+            <div className="home-stat-icon-wrap">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" strokeWidth="2">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+              </svg>
+            </div>
+            <span className="home-stat-label">{t.activeVotes || "Votes actifs"}</span>
+          </div>
+          <div className="home-stat-value">{votesDisplay}</div>
+          <div className="home-stat-sub">{t.today || "Aujourd'hui"}</div>
+        </div>
+
+        {/* Jours restants */}
+        <div className="home-stat-card">
+          <div className="home-stat-icon-row">
+            <div className="home-stat-icon-wrap">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" strokeWidth="2">
+                <circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/>
+              </svg>
+            </div>
+            <span className="home-stat-label">{t.daysLeft || "Jours restants"}</span>
+          </div>
+          <div className="home-stat-value" style={{ color: contestInfo.color }}>{contestInfo.label}</div>
+          <div className="home-stat-sub">{contestInfo.sub}</div>
+        </div>
+
+        {/* Participation */}
+        <div className="home-stat-card">
+          <div className="home-stat-icon-row">
+            <div className="home-stat-icon-wrap">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" strokeWidth="2">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M12 8v4l3 3"/>
+                <path d="M2 12h3M19 12h3M12 2v3M12 19v3" strokeWidth="1.5"/>
+              </svg>
+            </div>
+            <span className="home-stat-label">{t.participation || "Participation"}</span>
+          </div>
+          <div className="home-stat-value">78%</div>
+          <div className="home-stat-sub">{t.globalRate || "Taux global"}</div>
         </div>
       </div>
 
-      {/* Blue hero card */}
-      <div style={{ padding: "0 16px", marginBottom: 20 }}>
-        <div className="card-blue" style={{ padding: "20px 20px", position: "relative", overflow: "hidden", minHeight: 110 }}>
-          <div style={{ position: "absolute", top: -20, right: -20, width: 100, height: 100, borderRadius: "50%", background: "rgba(255,255,255,0.08)" }} />
-          <div style={{ position: "absolute", bottom: -30, right: 30, width: 70, height: 70, borderRadius: "50%", background: "rgba(255,255,255,0.06)" }} />
-          <div style={{ position: "absolute", top: 10, right: 16, fontSize: "2.5rem", opacity: 0.25 }}>👑</div>
-          <div style={{ fontSize: "0.62rem", fontWeight: 700, letterSpacing: "0.15em", color: "rgba(255,255,255,0.7)", marginBottom: 4, textTransform: "uppercase" }}>META</div>
-          <div style={{ fontSize: "1.3rem", fontWeight: 800, color: "#fff", lineHeight: 1.1, marginBottom: 2 }}>MISS MASTER</div>
-          <div style={{ fontSize: "0.85rem", fontWeight: 600, color: "rgba(255,255,255,0.8)", marginBottom: 8 }}>2025</div>
-          <div style={{ fontSize: "0.72rem", color: "rgba(255,255,255,0.65)" }}>Votez maintenant · Résultats en direct</div>
-        </div>
-      </div>
-
-      {/* Aperçu stats */}
-      <div className="section-header">
-        <span className="section-title">{t.overview}</span>
-        <Link href="/ranking" className="see-all">{t.seeAll}</Link>
-      </div>
-      <div className="stat-grid">
-        <div className="stat-box">
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2">
-              <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
-              <circle cx="9" cy="7" r="4" />
-              <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" />
-            </svg>
-            <span style={{ fontSize: "0.68rem", color: "var(--text-muted)", fontWeight: 500 }}>{t.candidates_label}</span>
-          </div>
-          <div style={{ fontSize: "1.5rem", fontWeight: 800, color: "var(--text)", lineHeight: 1 }}>
-            {stats?.totalCandidates ?? "—"}
-          </div>
-          <div style={{ fontSize: "0.68rem", color: "var(--text-muted)", marginTop: 2 }}>{t.inCompetition}</div>
-        </div>
-        <div className="stat-box">
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2">
-              <path d="M9 12l2 2 4-4" /><rect x="3" y="4" width="18" height="16" rx="2" />
-            </svg>
-            <span style={{ fontSize: "0.68rem", color: "var(--text-muted)", fontWeight: 500 }}>{t.activeVotes}</span>
-          </div>
-          <div style={{ fontSize: "1.5rem", fontWeight: 800, color: "var(--text)", lineHeight: 1 }}>
-            {stats?.totalVotesCount ? stats.totalVotesCount.toLocaleString("fr-FR") : "—"}
-          </div>
-          <div style={{ fontSize: "0.68rem", color: "var(--text-muted)", marginTop: 2 }}>{t.today}</div>
-        </div>
-        <div className="stat-box">
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2">
-              <circle cx="12" cy="12" r="10" /><path d="M12 8v4l3 3" />
-            </svg>
-            <span style={{ fontSize: "0.68rem", color: "var(--text-muted)", fontWeight: 500 }}>{t.daysLeft}</span>
-          </div>
-          <div style={{ fontSize: "1.5rem", fontWeight: 800, color: contestInfo.color, lineHeight: 1 }}>{contestInfo.label}</div>
-          <div style={{ fontSize: "0.68rem", color: "var(--text-muted)", marginTop: 2 }}>{contestInfo.sub}</div>
-        </div>
-        <div className="stat-box">
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2">
-              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" />
-            </svg>
-            <span style={{ fontSize: "0.68rem", color: "var(--text-muted)", fontWeight: 500 }}>{t.participation}</span>
-          </div>
-          <div style={{ fontSize: "1.5rem", fontWeight: 800, color: "var(--text)", lineHeight: 1 }}>78%</div>
-          <div style={{ fontSize: "0.68rem", color: "var(--text-muted)", marginTop: 2 }}>{t.globalRate}</div>
-        </div>
-      </div>
-
-      {/* Categories */}
-      <div className="section-header">
-        <span className="section-title">{t.categories}</span>
-        <Link href="/candidates" className="see-all">{t.seeAll}</Link>
-      </div>
-      <div style={{ display: "flex", gap: 8, padding: "0 16px", marginBottom: 20 }}>
-        <Link href="/candidates?type=MISS" style={{ textDecoration: "none" }}>
-          <span className="chip active">Miss</span>
-        </Link>
-        <Link href="/candidates?type=MASTER" style={{ textDecoration: "none" }}>
-          <span className="chip">Master</span>
+      {/* ── TOP CANDIDATES ── */}
+      <div className="home-section-hd">
+        <span className="home-section-title">{t.topCandidates || "Top candidates"}</span>
+        <Link href="/candidates" className="home-see-all">
+          Voir tout
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
         </Link>
       </div>
 
-      {/* Top candidats */}
-      <div className="section-header">
-        <span className="section-title">{t.topCandidates}</span>
-        <Link href="/candidates" className="see-all">{t.seeAll}</Link>
-      </div>
-
-      {/* Skeletons pendant le chargement */}
+      {/* Loading skeletons */}
       {loadingCandidates && (
-        <div style={{ padding: "0 16px", display: "flex", gap: 10 }}>
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="shimmer" style={{ height: 160, width: 120, borderRadius: 16, flexShrink: 0 }} />
+        <div style={{ display: "flex", gap: 10, padding: "0 16px", overflow: "hidden" }}>
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} style={{ flexShrink: 0, width: 130 }}>
+              <div className="shimmer" style={{ height: 160, borderRadius: 18, marginBottom: 8 }} />
+              <div className="shimmer" style={{ height: 12, borderRadius: 6, marginBottom: 5 }} />
+              <div className="shimmer" style={{ height: 10, borderRadius: 6, width: "60%" }} />
+            </div>
           ))}
         </div>
       )}
 
-      {/* Aucun candidat après chargement */}
+      {/* No candidates */}
       {!loadingCandidates && topAll.length === 0 && (
         <div style={{ display: "flex", flexDirection: "column", alignItems: "stretch", padding: "32px 24px", textAlign: "center", margin: "0 16px", background: "var(--bg)", borderRadius: 16, border: "1.5px dashed var(--border)" }}>
           <div style={{ fontSize: "2.5rem", marginBottom: 12 }}>🎭</div>
@@ -169,27 +499,77 @@ export default function HomeDashboardPage() {
         </div>
       )}
 
-      {/* Liste horizontale des candidats */}
-      {!loadingCandidates && topAll.length > 0 && (
-        <div style={{ overflowX: "auto", padding: "0 16px 8px", display: "flex", gap: 10, scrollSnapType: "x mandatory" }}>
-          {topAll.map((c, i) => {
-            const photo = c.photoUrl?.startsWith("http") ? c.photoUrl : `${apiBase}${c.photoUrl}`;
-            return (
-              <Link key={c.id} href={`/candidates/${c.id}`} style={{ textDecoration: "none", flexShrink: 0, scrollSnapAlign: "start" }}>
-                <div style={{ width: 120, borderRadius: 16, overflow: "hidden", position: "relative", height: 160, boxShadow: "0 2px 12px rgba(0,0,0,0.10)" }}>
-                  <img src={photo} alt={c.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                  <div style={{ position: "absolute", top: 8, left: 8, background: i === 0 ? "#F59E0B" : i === 1 ? "#9CA3AF" : i === 2 ? "#B45309" : "#2563EB", color: "#fff", borderRadius: 99, width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.7rem", fontWeight: 800 }}>{i + 1}</div>
-                  <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "linear-gradient(transparent, rgba(0,0,0,0.75))", padding: "20px 8px 8px", color: "#fff" }}>
-                    <div style={{ fontSize: "0.72rem", fontWeight: 700, lineHeight: 1.2 }}>{c.name.split(" ")[0]}</div>
-                    <div style={{ fontSize: "0.62rem", opacity: 0.8 }}>{c.type === "MISS" ? "Miss" : "Master"}</div>
-                  </div>
-                </div>
-              </Link>
-            );
-          })}
-        </div>
-      )}
+      {/* Horizontal scroll of candidates */}
+      {!loadingCandidates && topAll.length > 0 && (() => {
+        const total = topAll.reduce((sum, c) => sum + (c.totalVotes || 0), 0) || 1;
+        return (
+          <div className="home-cand-scroll-wrap">
+            <div className="home-cand-scroll" id="home-cand-scroll">
+              {topAll.map((c, i) => {
+                const photo = c.photoUrl?.startsWith("http") ? c.photoUrl : `${apiBase}${c.photoUrl}`;
+                const pct = Math.round(((c.totalVotes || 0) / total) * 100);
+                const rankColor = i === 0 ? "#F59E0B" : i === 1 ? "#9CA3AF" : i === 2 ? "#D97706" : "var(--blue)";
+                const vDisplay = (c.totalVotes || 0) >= 1000 ? `${((c.totalVotes || 0) / 1000).toFixed(1)}K` : String(c.totalVotes || 0);
+                return (
+                  <Link key={c.id} href={`/candidates/${c.id}`} className="home-cand-card fade-up" style={{ animationDelay: `${i * 0.06}s` }}>
+                    <div className="home-cand-img-wrap">
+                      <img src={photo} alt={c.name}
+                        onError={(e: any) => { e.target.src = "/placeholder-avatar.png"; e.target.onerror = null; }} />
+                      <div className="home-cand-rank" style={{ background: rankColor }}>{i + 1}</div>
+                      <div className="home-cand-overlay">
+                        <div className="home-cand-name">{c.name.split(" ")[0]}</div>
+                        <div className="home-cand-type">{c.type === "MISS" ? "Miss" : "Master"}</div>
+                      </div>
+                    </div>
+                    <div className="home-cand-body">
+                      <div className="home-cand-votes">
+                        <strong>{vDisplay}</strong> votes
+                      </div>
+                      <div className="home-cand-pct">{pct}%</div>
+                      <div className="home-cand-bar">
+                        <div className="home-cand-bar-fill" style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+            {/* Scroll arrows (tablet/desktop) */}
+            <button className="home-scroll-arrow left"
+              onClick={() => { const el = document.getElementById("home-cand-scroll"); if (el) el.scrollBy({ left: -280, behavior: "smooth" }); }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-2)" strokeWidth="2.5">
+                <polyline points="15 18 9 12 15 6"/>
+              </svg>
+            </button>
+            <button className="home-scroll-arrow right"
+              onClick={() => { const el = document.getElementById("home-cand-scroll"); if (el) el.scrollBy({ left: 280, behavior: "smooth" }); }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-2)" strokeWidth="2.5">
+                <polyline points="9 18 15 12 9 6"/>
+              </svg>
+            </button>
+          </div>
+        );
+      })()}
 
+      {/* ── BOTTOM CTA ── */}
+      <div className="home-cta-banner">
+        <div className="home-cta-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2">
+            <path d="M6 9H4.5a2.5 2.5 0 010-5H6M18 9h1.5a2.5 2.5 0 000-5H18"/>
+            <path d="M8 22h8M12 2v20M6 9h12v7a5 5 0 01-10 0V9z"/>
+          </svg>
+        </div>
+        <div className="home-cta-text">
+          <h3>Soutenez votre candidate préférée</h3>
+          <p>Chaque vote compte ! Faites la différence.</p>
+        </div>
+        <Link href="/vote" className="home-cta-btn">
+          Voter maintenant
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
+        </Link>
+      </div>
     </div>
   );
 }
