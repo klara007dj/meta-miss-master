@@ -5,17 +5,18 @@ import Link from "next/link";
 import api from "@/lib/api";
 import { useT } from "@/store/langStore";
 import CandidacyButton from "@/components/CandidacyButton";
+import toast from "react-hot-toast";
 
 interface RC { id: string; name: string; city: string; photoUrl: string; totalVotes: number; rank: number; }
 
 export default function RankingPage() {
   const t = useT();
-  const [tab, setTab] = useState<"MISS"|"MASTER">("MISS");
+  const [tab, setTab] = useState<"MISS" | "MASTER">("MISS");
   const [miss, setMiss] = useState<RC[]>([]);
   const [master, setMaster] = useState<RC[]>([]);
   const [loading, setLoading] = useState(true);
   const [live, setLive] = useState(false);
-  const apiBase = process.env.NEXT_PUBLIC_API_URL?.replace("/api","") || "http://localhost:5000";
+  const apiBase = process.env.NEXT_PUBLIC_API_URL?.replace("/api", "") || "http://localhost:5000";
 
   useEffect(() => {
     Promise.all([
@@ -36,89 +37,476 @@ export default function RankingPage() {
   const total = current.reduce((sum, c) => sum + c.totalVotes, 0) || 1;
   const pct = (v: number) => Math.round((v / total) * 100);
 
+  const handleShare = async () => {
+    const url = window.location.href;
+    if (navigator.share) {
+      try { await navigator.share({ title: "Meta Miss Master — Classement", url }); } catch { }
+    } else {
+      await navigator.clipboard.writeText(url);
+      toast.success("Lien copié !");
+    }
+  };
+  const handleCopyLink = async () => {
+    await navigator.clipboard.writeText(window.location.href);
+    toast.success("Lien copié !");
+  };
+  const handleWhatsApp = () => {
+    window.open(`https://wa.me/?text=${encodeURIComponent("Classement Meta Miss Master 2025 : " + window.location.href)}`, "_blank");
+  };
+  const handleTwitter = () => {
+    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent("Classement Meta Miss Master 2025")}&url=${encodeURIComponent(window.location.href)}`, "_blank");
+  };
+
   return (
     <div className="page-content fade-up">
-      {/* Top bar */}
-      <div className="top-bar">
-        <div style={{ width: 32 }} />
-        <span className="top-bar-title">{t.results}</span>
-        <div style={{ width: 32 }} />
-      </div>
+      <style>{`
+        /* ═══════════════════════════════════
+           RANKING PAGE — REDESIGN
+        ═══════════════════════════════════ */
 
-      {/* Live indicator */}
-      <div style={{ padding: "0 16px 14px", display: "flex", alignItems: "center", gap: 6 }}>
-        <div style={{ fontWeight: 700, fontSize: "0.82rem", color: "var(--text)" }}>{t.currentRanking}</div>
-        <div style={{ fontSize: "0.68rem", color: live ? "#10B981" : "var(--text-muted)", display: "flex", alignItems: "center", gap: 4, marginLeft: "auto" }}>
-          <span style={{ width: 6, height: 6, borderRadius: "50%", background: live ? "#10B981" : "var(--border)", display: "inline-block", animation: live ? "live-pulse 1.5s infinite" : "none" }} />
-          {t.liveUpdate}
+        /* Page header */
+        .rk-header {
+          padding: 20px 16px 16px;
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 12px;
+        }
+        .rk-header-left h1 {
+          font-size: 1.3rem;
+          font-weight: 900;
+          color: var(--text);
+          line-height: 1.2;
+          margin-bottom: 4px;
+        }
+        .rk-header-sub {
+          font-size: 0.78rem;
+          color: var(--text-muted);
+        }
+        .rk-edition-badge {
+          display: inline-block;
+          background: var(--blue);
+          color: #fff;
+          font-size: 0.62rem;
+          font-weight: 800;
+          letter-spacing: 0.1em;
+          padding: 4px 10px;
+          border-radius: 6px;
+          text-transform: uppercase;
+          white-space: nowrap;
+          flex-shrink: 0;
+          align-self: flex-start;
+          margin-top: 3px;
+        }
+
+        /* Tabs */
+        .rk-tabs {
+          display: flex;
+          gap: 0;
+          background: var(--bg);
+          border-radius: 14px;
+          margin: 0 16px 20px;
+          padding: 4px;
+          border: 1.5px solid var(--border);
+        }
+        .rk-tab {
+          flex: 1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          padding: 11px 0;
+          border-radius: 10px;
+          font-size: 0.88rem;
+          font-weight: 700;
+          border: none;
+          cursor: pointer;
+          font-family: var(--font);
+          transition: all 0.2s;
+          color: var(--text-muted);
+          background: transparent;
+        }
+        .rk-tab.active {
+          background: var(--blue);
+          color: #fff;
+          box-shadow: 0 4px 12px rgba(37,99,235,0.3);
+        }
+
+        /* Table card */
+        .rk-table-card {
+          margin: 0 16px 16px;
+          background: var(--bg-white);
+          border: 1.5px solid var(--border);
+          border-radius: 18px;
+          overflow: hidden;
+          box-shadow: var(--shadow);
+        }
+
+        /* Table header */
+        .rk-table-head {
+          display: grid;
+          grid-template-columns: 44px 1fr 80px 72px;
+          gap: 0;
+          padding: 10px 16px;
+          background: var(--bg);
+          border-bottom: 1px solid var(--border);
+        }
+        .rk-th {
+          font-size: 0.68rem;
+          font-weight: 700;
+          color: var(--text-muted);
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+        }
+        .rk-th.right { text-align: right; }
+
+        /* Table rows */
+        .rk-row {
+          display: grid;
+          grid-template-columns: 44px 1fr 80px 72px;
+          gap: 0;
+          align-items: center;
+          padding: 12px 16px;
+          border-bottom: 1px solid var(--border-light);
+          text-decoration: none;
+          transition: background 0.12s;
+        }
+        .rk-row:last-child { border-bottom: none; }
+        .rk-row:hover { background: var(--bg); }
+
+        /* Rank badge */
+        .rk-rank {
+          width: 28px; height: 28px;
+          border-radius: 50%;
+          display: flex; align-items: center; justify-content: center;
+          font-size: 0.75rem;
+          font-weight: 800;
+          color: #fff;
+          flex-shrink: 0;
+        }
+
+        /* Candidate cell */
+        .rk-cand-cell {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          min-width: 0;
+        }
+        .rk-cand-photo {
+          width: 44px; height: 44px;
+          border-radius: 10px;
+          object-fit: cover;
+          flex-shrink: 0;
+          background: var(--bg);
+        }
+        .rk-cand-name {
+          font-size: 0.85rem;
+          font-weight: 700;
+          color: var(--text);
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          margin-bottom: 4px;
+        }
+        .rk-progress {
+          height: 4px;
+          background: var(--blue-mid);
+          border-radius: 100px;
+          overflow: hidden;
+          max-width: 120px;
+        }
+        .rk-progress-fill {
+          height: 100%;
+          background: var(--blue);
+          border-radius: 100px;
+          transition: width 0.8s ease;
+        }
+
+        /* Percentage cell */
+        .rk-pct {
+          font-size: 0.95rem;
+          font-weight: 800;
+          color: var(--blue);
+          text-align: right;
+        }
+
+        /* Votes cell */
+        .rk-votes {
+          font-size: 0.82rem;
+          font-weight: 700;
+          color: var(--text);
+          text-align: right;
+        }
+        .rk-votes-sub {
+          font-size: 0.62rem;
+          color: var(--text-muted);
+          font-weight: 500;
+        }
+
+        /* Live badge */
+        .rk-live-row {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 10px 16px;
+          margin: 0 16px 16px;
+          background: var(--bg-white);
+          border: 1.5px solid var(--border);
+          border-radius: 12px;
+          font-size: 0.78rem;
+          color: var(--text-muted);
+          box-shadow: var(--shadow);
+        }
+        .rk-live-dot {
+          width: 8px; height: 8px;
+          border-radius: 50%;
+          background: var(--border);
+          flex-shrink: 0;
+        }
+        .rk-live-dot.on {
+          background: #10B981;
+          animation: live-pulse 1.5s infinite;
+        }
+        @keyframes live-pulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
+
+        /* Share card */
+        .rk-share-card {
+          margin: 0 16px 24px;
+          background: var(--bg-white);
+          border: 1.5px solid var(--border);
+          border-radius: 18px;
+          padding: 18px 18px 16px;
+          box-shadow: var(--shadow);
+        }
+        .rk-share-title {
+          font-size: 0.9rem;
+          font-weight: 800;
+          color: var(--blue);
+          margin-bottom: 4px;
+        }
+        .rk-share-sub {
+          font-size: 0.75rem;
+          color: var(--text-muted);
+          margin-bottom: 14px;
+        }
+        .rk-share-btns {
+          display: flex;
+          gap: 8px;
+          flex-wrap: wrap;
+        }
+        .rk-share-btn {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 5px;
+          cursor: pointer;
+          font-size: 0.65rem;
+          color: var(--text-muted);
+          font-weight: 600;
+          background: none;
+          border: none;
+          font-family: var(--font);
+        }
+        .rk-share-btn-icon {
+          width: 44px; height: 44px;
+          border-radius: 14px;
+          display: flex; align-items: center; justify-content: center;
+          background: var(--bg);
+          border: 1.5px solid var(--border);
+          transition: all 0.15s;
+        }
+        .rk-share-btn:hover .rk-share-btn-icon {
+          background: var(--blue-light);
+          border-color: var(--blue-mid);
+        }
+        /* Desktop: share btns inline */
+        @media (min-width: 640px) {
+          .rk-share-btns-desktop { display: flex; gap: 10px; align-items: center; }
+          .rk-share-btn-desktop {
+            display: flex; align-items: center; gap: 8px;
+            padding: 10px 18px; border-radius: 12px;
+            border: 1.5px solid var(--border);
+            background: var(--bg-white);
+            font-size: 0.78rem; font-weight: 600;
+            color: var(--text);
+            cursor: pointer; font-family: var(--font);
+            transition: all 0.15s;
+          }
+          .rk-share-btn-desktop:hover { background: var(--bg); border-color: var(--blue); color: var(--blue); }
+        }
+
+        /* Skeleton rows */
+        .rk-skel-row {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 12px 16px;
+          border-bottom: 1px solid var(--border-light);
+        }
+        .rk-skel-row:last-child { border-bottom: none; }
+
+        /* Mobile: hide % column label, show inline */
+        @media (max-width: 400px) {
+          .rk-table-head { grid-template-columns: 40px 1fr 60px; }
+          .rk-row { grid-template-columns: 40px 1fr 60px; }
+          .rk-votes { display: none; }
+          .rk-th.votes-col { display: none; }
+        }
+      `}</style>
+
+      {/* ── HEADER ── */}
+      <div className="rk-header">
+        <div className="rk-header-left">
+          <h1>Résultats en direct</h1>
+          <div className="rk-header-sub">
+            Classement des candidates — Catégorie {tab === "MISS" ? "Miss" : "Master"}
+          </div>
         </div>
+        <span className="rk-edition-badge">Édition 2025</span>
       </div>
 
-      <style>{`@keyframes live-pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }`}</style>
-
-      {/* Tabs */}
-      <div style={{ display: "flex", background: "var(--bg)", borderRadius: 10, margin: "0 16px 20px", padding: 3 }}>
-        {(["MISS","MASTER"] as const).map(tabOpt => (
-          <button key={tabOpt} onClick={() => setTab(tabOpt)} style={{
-            flex: 1, padding: "9px 0",
-            borderRadius: 8, fontSize: "0.82rem", fontWeight: 700,
-            border: "none", cursor: "pointer", fontFamily: "var(--font)",
-            background: tab===tabOpt ? "#2563EB" : "transparent",
-            color: tab===tabOpt ? "#fff" : "var(--text-muted)",
-            transition: "all 0.2s",
-          }}>
+      {/* ── TABS ── */}
+      <div className="rk-tabs">
+        {(["MISS", "MASTER"] as const).map(tabOpt => (
+          <button key={tabOpt} onClick={() => setTab(tabOpt)} className={`rk-tab${tab === tabOpt ? " active" : ""}`}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M2 19h20v2H2v-2zm18-9l-3 9H7L4 10l4 3 4-6 4 6 4-3z"/>
+            </svg>
             {tabOpt === "MISS" ? "Miss" : "Master"}
           </button>
         ))}
       </div>
 
-      {/* Ranking list */}
-      <div style={{ padding: "0 16px" }}>
+      {/* ── TABLE ── */}
+      <div className="rk-table-card">
+        {/* Table header */}
+        <div className="rk-table-head">
+          <div className="rk-th">#</div>
+          <div className="rk-th">Candidate</div>
+          <div className="rk-th right">Pourcentage</div>
+          <div className="rk-th right votes-col">Votes</div>
+        </div>
 
         {/* Loading skeletons */}
-        {loading && [1,2,3,4].map(i => (
-          <div key={i} className="shimmer" style={{ height: 60, borderRadius: 10, marginBottom: 8 }} />
+        {loading && [1, 2, 3, 4, 5].map(i => (
+          <div key={i} className="rk-skel-row">
+            <div className="shimmer" style={{ width: 28, height: 28, borderRadius: "50%", flexShrink: 0 }} />
+            <div className="shimmer" style={{ width: 44, height: 44, borderRadius: 10, flexShrink: 0 }} />
+            <div style={{ flex: 1 }}>
+              <div className="shimmer" style={{ height: 13, borderRadius: 6, marginBottom: 6, maxWidth: 140 }} />
+              <div className="shimmer" style={{ height: 4, borderRadius: 100, maxWidth: 100 }} />
+            </div>
+            <div className="shimmer" style={{ width: 36, height: 20, borderRadius: 6, marginLeft: "auto" }} />
+          </div>
         ))}
 
-        {/* État vide après chargement */}
+        {/* Empty state */}
         {!loading && current.length === 0 && (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "stretch", padding: "60px 24px", textAlign: "center" }}>
             <div style={{ fontSize: "3rem", marginBottom: 16 }}>🏆</div>
-            <div style={{ fontWeight: 800, fontSize: "1rem", color: "var(--text)", marginBottom: 8 }}>{t.noResultsYet}</div>
-            <div style={{ fontSize: "0.83rem", color: "var(--text-muted)", marginBottom: 28, lineHeight: 1.6 }}>{t.noResultsDesc}</div>
+            <div style={{ fontWeight: 800, fontSize: "1rem", color: "var(--text)", marginBottom: 8 }}>{t.noResultsYet || "Aucun résultat"}</div>
+            <div style={{ fontSize: "0.83rem", color: "var(--text-muted)", marginBottom: 28, lineHeight: 1.6 }}>{t.noResultsDesc || "Les résultats apparaîtront ici dès les premiers votes."}</div>
             <CandidacyButton variant="full" style={{ margin: "0 auto" }} />
           </div>
         )}
 
-        {/* Liste des résultats */}
+        {/* Ranking rows */}
         {!loading && current.map((c, i) => {
           const photo = c.photoUrl?.startsWith("http") ? c.photoUrl : `${apiBase}${c.photoUrl}`;
           const percent = pct(c.totalVotes);
+          const rankColor = i === 0 ? "#F59E0B" : i === 1 ? "#9CA3AF" : i === 2 ? "#D97706" : "var(--blue)";
+          const vDisplay = c.totalVotes >= 1000 ? `${(c.totalVotes / 1000).toFixed(1)}K` : String(c.totalVotes);
+
           return (
-            <div key={c.id} className="fade-up" style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 0", borderBottom: "1px solid var(--border-light)", animationDelay: `${i*0.06}s` }}>
-              <div style={{
-                width: 22, height: 22, borderRadius: "50%", flexShrink: 0,
-                background: i===0?"#F59E0B":i===1?"#9CA3AF":i===2?"#D97706":"var(--blue-light)",
-                color: i<3?"#fff":"var(--blue)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: "0.65rem", fontWeight: 800,
-              }}>
-                {i+1}
+            <Link key={c.id} href={`/candidates/${c.id}`} className="rk-row fade-up" style={{ animationDelay: `${i * 0.06}s` }}>
+              {/* Rank */}
+              <div>
+                <div className="rk-rank" style={{ background: rankColor }}>{i + 1}</div>
               </div>
-              <img src={photo} alt={c.name} className="avatar" style={{ width: 40, height: 40 }}
-                onError={(e:any)=>{e.target.style.background="var(--blue-light)";}} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 700, fontSize: "0.85rem", color: "var(--text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.name}</div>
-                <div className="progress-bar" style={{ marginTop: 4 }}>
-                  <div className="progress-fill" style={{ width: `${percent}%` }} />
+
+              {/* Candidate */}
+              <div className="rk-cand-cell">
+                <img src={photo} alt={c.name} className="rk-cand-photo"
+                  onError={(e: any) => { e.target.src = "/placeholder-avatar.png"; e.target.onerror = null; }} />
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div className="rk-cand-name">{c.name}</div>
+                  <div className="rk-progress">
+                    <div className="rk-progress-fill" style={{ width: `${percent}%` }} />
+                  </div>
                 </div>
               </div>
-              <div style={{ fontSize: "0.82rem", fontWeight: 700, color: "var(--blue)", flexShrink: 0, minWidth: 34, textAlign: "right" }}>
-                {percent}%
+
+              {/* Percentage */}
+              <div className="rk-pct">{percent}%</div>
+
+              {/* Votes */}
+              <div className="rk-votes">
+                {vDisplay}
+                <div className="rk-votes-sub">votes</div>
               </div>
-            </div>
+            </Link>
           );
         })}
+      </div>
+
+      {/* ── LIVE INDICATOR ── */}
+      <div className="rk-live-row">
+        <div className={`rk-live-dot${live ? " on" : ""}`} />
+        <span>
+          {live ? "Résultats mis à jour en temps réel" : "Connexion en cours..."}
+        </span>
+      </div>
+
+      {/* ── SHARE CARD ── */}
+      <div className="rk-share-card">
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+          <div>
+            <div className="rk-share-title">Partager le classement</div>
+            <div className="rk-share-sub">Partagez ces résultats avec vos amis et votre communauté</div>
+          </div>
+        </div>
+
+        {/* Mobile: icon grid */}
+        <div className="rk-share-btns" style={{ display: "flex" }}>
+          <button className="rk-share-btn" onClick={handleShare}>
+            <div className="rk-share-btn-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-2)" strokeWidth="2">
+                <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+              </svg>
+            </div>
+            Partager
+          </button>
+          <button className="rk-share-btn" onClick={handleCopyLink}>
+            <div className="rk-share-btn-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-2)" strokeWidth="2">
+                <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/>
+                <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/>
+              </svg>
+            </div>
+            Copier le lien
+          </button>
+          <button className="rk-share-btn" onClick={handleWhatsApp}>
+            <div className="rk-share-btn-icon" style={{ background: "#E8F8F0", borderColor: "#B2ECC8" }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+            </div>
+            WhatsApp
+          </button>
+          <button className="rk-share-btn" onClick={handleTwitter}>
+            <div className="rk-share-btn-icon" style={{ background: "#E8F4FF", borderColor: "#BFDBFE" }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="#1DA1F2"><path d="M23 3a10.9 10.9 0 01-3.14 1.53 4.48 4.48 0 00-7.86 3v1A10.66 10.66 0 013 4s-4 9 5 13a11.64 11.64 0 01-7 2c9 5 20 0 20-11.5a4.5 4.5 0 00-.08-.83A7.72 7.72 0 0023 3z"/></svg>
+            </div>
+            Twitter
+          </button>
+          <button className="rk-share-btn" onClick={handleShare}>
+            <div className="rk-share-btn-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-2)" strokeWidth="2">
+                <circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>
+              </svg>
+            </div>
+            Plus
+          </button>
+        </div>
       </div>
     </div>
   );
