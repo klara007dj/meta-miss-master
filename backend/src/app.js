@@ -52,9 +52,22 @@ app.use(cors({
 // Logging
 app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));
 
-// Body parsing
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+// ─── Body parsing ──────────────────────────────────────────────────────────────
+// IMPORTANT : les routes webhook ont besoin du raw body pour vérifier la
+// signature HMAC. On exclut /api/payments/webhook/* du parsing JSON global
+// pour que express.raw() dans payment.routes.js reçoive le Buffer intact.
+app.use((req, res, next) => {
+  if (req.path.startsWith("/api/payments/webhook/")) {
+    return next(); // raw body géré dans la route elle-même
+  }
+  express.json({ limit: "10mb" })(req, res, next);
+});
+app.use((req, res, next) => {
+  if (req.path.startsWith("/api/payments/webhook/")) {
+    return next();
+  }
+  express.urlencoded({ extended: true, limit: "10mb" })(req, res, next);
+});
 
 // Static uploads
 app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
