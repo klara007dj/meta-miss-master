@@ -1022,3 +1022,36 @@ body {
 
 /* Scrollbar hidden */
 .page-content::-webkit-scrollbar { display: none; }
+
+/* ════════════════════════════════════════════
+   GLOBAL POLISH — slim scrollbar, focus, selection
+══════════════════════════════════════════════ */
+::selection { background: var(--blue-mid); color: var(--blue-dark); }
+
+@media (min-width: 768px) {
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 100px; border: 2px solid var(--bg-white); }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-faint); }
+}
+
+/* Accessible focus ring on interactive elements */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Respect users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

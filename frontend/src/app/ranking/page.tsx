@@ -743,7 +743,7 @@ export default function RankingPage() {
                     alt={c.name}
                     className="rk-cand-photo"
                     onError={(e: any) => {
-                      e.target.src = "/placeholder-avatar.png";
+                      e.target.src = "/placeholder-avatar.svg";
                       e.target.onerror = null;
                     }}
                   />

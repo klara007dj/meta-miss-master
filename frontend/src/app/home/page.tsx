@@ -514,7 +514,7 @@ export default function HomeDashboardPage() {
                   <Link key={c.id} href={`/candidates/${c.id}`} className="home-cand-card fade-up" style={{ animationDelay: `${i * 0.06}s` }}>
                     <div className="home-cand-img-wrap">
                       <img src={photo} alt={c.name}
-                        onError={(e: any) => { e.target.src = "/placeholder-avatar.png"; e.target.onerror = null; }} />
+                        onError={(e: any) => { e.target.src = "/placeholder-avatar.svg"; e.target.onerror = null; }} />
                       <div className="home-cand-rank" style={{ background: rankColor }}>{i + 1}</div>
                       <div className="home-cand-overlay">
                         <div className="home-cand-name">{c.name.split(" ")[0]}</div>
