@@ -73,11 +73,11 @@ async function getAllPayments({ status, page, limit }) {
     }
   }
 
-  const [payments, total] = await Promise.all([
+  const [rawPayments, total] = await Promise.all([
     prisma.payment.findMany({
       where,
       include: {
-        user: { select: { id: true, name: true, email: true } }
+        user: { select: { id: true, name: true, email: true, phone: true } }
       },
       orderBy: { createdAt: "desc" },
       skip,
@@ -85,6 +85,23 @@ async function getAllPayments({ status, page, limit }) {
     }),
     prisma.payment.count({ where })
   ]);
+
+  // Resolve candidate names without requiring a schema relation on Payment.
+  const candidateIds = [...new Set(rawPayments.map((p) => p.candidateId).filter(Boolean))];
+  const candidateNameById = {};
+  if (candidateIds.length) {
+    const cands = await prisma.candidate.findMany({
+      where: { id: { in: candidateIds } },
+      select: { id: true, name: true }
+    });
+    cands.forEach((c) => { candidateNameById[c.id] = c.name; });
+  }
+
+  const payments = rawPayments.map((p) => ({
+    ...p,
+    candidateName: candidateNameById[p.candidateId] || null
+  }));
+
   return { payments, total, page: safePage, totalPages: Math.ceil(total / safeLimit) };
 }
 

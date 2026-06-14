@@ -23,7 +23,9 @@
     "clsx": "^2.1.0",
     "tailwind-merge": "^2.2.1",
     "framer-motion": "^11.0.17",
-    "react-countup": "^6.5.3"
+    "react-countup": "^6.5.3",
+    "jspdf": "^2.5.2",
+    "jspdf-autotable": "^3.8.4"
   },
   "devDependencies": {
     "typescript": "^5.4.3",

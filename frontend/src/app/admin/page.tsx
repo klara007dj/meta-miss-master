@@ -8,8 +8,9 @@ import { useAuthStore } from "@/store/authStore";
 import toast from "react-hot-toast";
 import {
   LayoutDashboard, Users, CreditCard, Trophy, User, LogOut,
-  CheckCircle2, XCircle, Trash2, Edit3, Plus, Camera, Globe, type LucideIcon
+  CheckCircle2, XCircle, Trash2, Edit3, Plus, Camera, Globe, FileDown, type LucideIcon
 } from "lucide-react";
+import { downloadCandidatePdf, downloadTransactionsPdf } from "@/lib/pdf";
 
 type Tab = "overview" | "candidates" | "payments" | "contests" | "users";
 const EMPTY_EDIT = { name: "", city: "", age: "", bio: "", type: "MISS", status: "PENDING", instagram: "", tiktok: "", snap: "", whatsappFan: "", phone: "", email: "" };
@@ -134,8 +135,37 @@ export default function AdminPage() {
     setSocialSaving(false);
   };
 
-  const statusColor: Record<string, string> = { APPROVED: "#10B981", PENDING: "#F59E0B", REJECTED: "#EF4444", COMPLETED: "#10B981", OPEN: "#10B981", CLOSED: "#64748B" };
+  const statusColor: Record<string, string> = { APPROVED: "#10B981", PENDING: "#F59E0B", REJECTED: "#EF4444", COMPLETED: "#10B981", FAILED: "#EF4444", REFUNDED: "#EF4444", OPEN: "#10B981", CLOSED: "#64748B" };
   const sc = (s: string) => statusColor[s] || "#64748B";
+
+  /* ── PDF exports ── */
+  const [exportingTx, setExportingTx] = useState(false);
+  const candidateNameById: Record<string, string> = Object.fromEntries(candidates.map((c: any) => [c.id, c.name]));
+
+  const handleCandidatePdf = async (c: any) => {
+    try { await downloadCandidatePdf(c, apiBase); toast.success("PDF généré ✓"); }
+    catch { toast.error("Erreur lors de la génération du PDF"); }
+  };
+
+  const handleTransactionsPdf = async () => {
+    setExportingTx(true);
+    try {
+      // Fetch every transaction (not only the 50 displayed) for a complete report.
+      const res = await api.get("/admin/payments?limit=10000");
+      const all = res.data?.data?.payments?.length ? res.data.data.payments : payments;
+      await downloadTransactionsPdf(all, candidateNameById);
+      toast.success("PDF des transactions généré ✓");
+    } catch { toast.error("Erreur lors de l'export PDF"); }
+    setExportingTx(false);
+  };
+
+  // Small label/value cell used by the payments detail grid.
+  const cell = (label: string, value: any) => (
+    <div>
+      <div style={{ color: "#94A3B8", fontWeight: 700, fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.04em" }}>{label}</div>
+      <div style={{ color: "#0F172A", fontWeight: 600, marginTop: 2, wordBreak: "break-word", fontSize: 12.5 }}>{value === null || value === undefined || value === "" ? "—" : value}</div>
+    </div>
+  );
 
   const navItems: { key: Tab; Icon: LucideIcon; label: string }[] = [
     { key: "overview", Icon: LayoutDashboard, label: "Tableau de bord" },
@@ -255,6 +285,7 @@ export default function AdminPage() {
                       </div>
                     </div>
                     <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+                      <button title="Télécharger la fiche PDF" onClick={() => handleCandidatePdf(c)} style={{ width: 36, height: 36, borderRadius: 10, border: "1.5px solid #2563EB30", background: "#2563EB10", display: "grid", placeItems: "center", cursor: "pointer" }}><FileDown size={15} color="#2563EB" /></button>
                       <button onClick={() => openEdit(c)} style={{ width: 36, height: 36, borderRadius: 10, border: "1.5px solid #E2E8F0", background: "#fff", display: "grid", placeItems: "center", cursor: "pointer" }}><Edit3 size={15} color="#6366F1" /></button>
                       {c.status === "PENDING" && <>
                         <button onClick={() => approve(c.id)} style={{ width: 36, height: 36, borderRadius: 10, border: "1.5px solid #10B98130", background: "#10B98110", display: "grid", placeItems: "center", cursor: "pointer" }}><CheckCircle2 size={15} color="#10B981" /></button>
@@ -270,25 +301,49 @@ export default function AdminPage() {
 
           {/* ── PAYMENTS ── */}
           {tab === "payments" && (
-            <div style={{ display: "grid", gap: 10 }}>
-              {payments.map(p => (
-                <div key={p.id} style={{ ...S.card, padding: "16px 20px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
-                    <div>
-                      <div style={{ fontWeight: 700, color: "#0F172A", fontSize: 14 }}>{p.user?.name}</div>
-                      <div style={{ fontSize: 13, color: "#94A3B8", marginTop: 2 }}>{p.user?.email}</div>
-                    </div>
-                    <div style={{ textAlign: "right" }}>
-                      <div style={{ fontWeight: 800, color: "#6366F1", fontSize: 15 }}>{p.amount?.toLocaleString("fr-FR")} FCFA</div>
-                      <div style={{ fontSize: 12, color: "#94A3B8", marginTop: 2 }}>{p.votesCount} votes</div>
-                    </div>
-                  </div>
-                  <div style={{ marginTop: 12, display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 8, fontSize: 12, color: "#64748B" }}>
-                    <span>{new Date(p.createdAt).toLocaleDateString("fr-FR")}</span>
-                    <span style={S.pill(sc(p.status))}>{p.status}</span>
-                  </div>
+            <div style={{ display: "grid", gap: 14 }}>
+              {/* Toolbar : récap + export PDF */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+                <div style={{ fontSize: 13, color: "#64748B" }}>
+                  <strong style={{ color: "#0F172A" }}>{payments.length}</strong> transaction(s) ·{" "}
+                  <strong style={{ color: "#10B981" }}>{payments.filter(p => p.status === "COMPLETED").length}</strong> complétée(s) ·{" "}
+                  Revenus : <strong style={{ color: "#0F172A" }}>{payments.filter(p => p.status === "COMPLETED").reduce((s, p) => s + (p.amount || 0), 0).toLocaleString("fr-FR")} FCFA</strong>
                 </div>
-              ))}
+                <button onClick={handleTransactionsPdf} disabled={exportingTx} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 18px", borderRadius: 14, background: "linear-gradient(135deg,#6366F1,#8B5CF6)", color: "#fff", border: "none", cursor: "pointer", fontWeight: 700, fontSize: 14, boxShadow: "0 4px 20px #6366F130", opacity: exportingTx ? 0.6 : 1, fontFamily: "inherit" }}>
+                  <FileDown size={16} /> {exportingTx ? "Génération..." : "Télécharger PDF (toutes)"}
+                </button>
+              </div>
+
+              {payments.length === 0 ? (
+                <div style={{ ...S.card, padding: "48px 24px", textAlign: "center", border: "2px dashed #E2E8F0" }}>
+                  <CreditCard size={40} color="#CBD5E1" style={{ margin: "0 auto 16px" }} />
+                  <div style={{ fontWeight: 700, color: "#0F172A", fontSize: 15 }}>Aucune transaction</div>
+                </div>
+              ) : payments.map(p => {
+                const candName = p.candidateName || candidateNameById[p.candidateId] || "—";
+                const phone = p.user?.phone || p.metadata?.phone || p.metadata?.phone_number || "—";
+                return (
+                  <div key={p.id} style={{ ...S.card, padding: "16px 20px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 10, alignItems: "flex-start" }}>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontWeight: 700, color: "#0F172A", fontSize: 14 }}>{p.user?.name || "—"}</div>
+                        <div style={{ fontSize: 13, color: "#94A3B8", marginTop: 2 }}>{p.user?.email || "—"}</div>
+                      </div>
+                      <div style={{ textAlign: "right" }}>
+                        <div style={{ fontWeight: 800, color: "#6366F1", fontSize: 16 }}>{(p.amount || 0).toLocaleString("fr-FR")} FCFA</div>
+                        <span style={{ ...S.pill(sc(p.status)), display: "inline-block", marginTop: 4 }}>{p.status}</span>
+                      </div>
+                    </div>
+                    <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid #F1F5F9", display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(130px,1fr))", gap: 12 }}>
+                      {cell("N° payeur", phone)}
+                      {cell("Candidat", candName)}
+                      {cell("Votes", p.votesCount)}
+                      {cell("Date", new Date(p.createdAt).toLocaleString("fr-FR"))}
+                      {cell("Référence", p.flutterwaveTxRef)}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
 
@@ -429,6 +484,7 @@ export default function AdminPage() {
               </div>
             ))}
             <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+              <button style={{ flex: 1, fontSize: "0.82rem", background: "#2563EB", color: "#fff", border: "none", borderRadius: 12, padding: "12px 0", cursor: "pointer", fontWeight: 700, fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }} onClick={() => handleCandidatePdf(viewingCandidate)}><FileDown size={15} /> PDF</button>
               <button className="btn-blue" style={{ flex: 1, fontSize: "0.82rem", background: "linear-gradient(135deg,#6366F1,#8B5CF6)" }} onClick={() => { setViewingCandidate(null); openEdit(viewingCandidate); }}>✏️ Modifier</button>
               {viewingCandidate.status === "PENDING" && (
                 <button style={{ flex: 1, fontSize: "0.82rem", background: "#10B981", color: "#fff", border: "none", borderRadius: 12, padding: "12px 0", cursor: "pointer", fontWeight: 700, fontFamily: "inherit" }} onClick={() => { approve(viewingCandidate.id); setViewingCandidate(null); }}>✓ Approuver</button>
