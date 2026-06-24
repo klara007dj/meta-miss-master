@@ -58,19 +58,29 @@ class PaymentController {
 
   async webhookGeniusPay(req, res) {
     try {
-      const signature = req.headers["x-webhook-signature"];
-      const timestamp = req.headers["x-webhook-timestamp"];
-      const event = req.headers["x-webhook-event"];
+      // Noms officiels (doc GeniusPay) : X-GeniusPay-Signature / -Timestamp / -Event
+      // Express met les headers en minuscules. On garde un fallback vers les
+      // anciens noms (x-webhook-*) pour compatibilité.
+      const signature =
+        req.headers["x-geniuspay-signature"] || req.headers["x-webhook-signature"];
+      const timestamp =
+        req.headers["x-geniuspay-timestamp"] || req.headers["x-webhook-timestamp"];
+      const event =
+        req.headers["x-geniuspay-event"] || req.headers["x-webhook-event"];
 
-      if (!signature || !timestamp) {
-        logger.warn("GeniusPay webhook: headers manquants");
-        return res.status(401).json({ message: "Headers manquants" });
+      if (!signature) {
+        logger.warn("GeniusPay webhook: signature manquante");
+        return res.status(401).json({ message: "Signature manquante" });
       }
 
-      const now = Math.floor(Date.now() / 1000);
-      if (Math.abs(now - parseInt(timestamp)) > 300) {
-        logger.warn("GeniusPay webhook: timestamp trop vieux");
-        return res.status(400).json({ message: "Timestamp expiré" });
+      // Protection anti-rejeu : on n'applique l'expiration que si un timestamp
+      // numérique est fourni (la signature, elle, ne dépend pas du timestamp).
+      if (timestamp && /^\d+$/.test(String(timestamp))) {
+        const now = Math.floor(Date.now() / 1000);
+        if (Math.abs(now - parseInt(timestamp, 10)) > 300) {
+          logger.warn("GeniusPay webhook: timestamp trop vieux");
+          return res.status(400).json({ message: "Timestamp expiré" });
+        }
       }
 
       const isValid = paymentService.verifyGeniusPaySignature({
@@ -84,9 +94,9 @@ class PaymentController {
         return res.status(401).json({ message: "Signature invalide" });
       }
 
-      const parsedBody = typeof req.body === "string"
-        ? JSON.parse(req.body)
-        : req.body;
+      // req.body est un Buffer (express.raw). On le décode puis on le parse.
+      const rawString = Buffer.isBuffer(req.body) ? req.body.toString("utf8") : req.body;
+      const parsedBody = typeof rawString === "string" ? JSON.parse(rawString) : rawString;
 
       logger.info(`GeniusPay webhook reçu: event=${event}`);
       await paymentService.processGeniusPayWebhook(parsedBody);
