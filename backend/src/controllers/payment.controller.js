@@ -58,15 +58,15 @@ class PaymentController {
 
   async webhookGeniusPay(req, res) {
     try {
-      // Noms officiels (doc GeniusPay) : X-GeniusPay-Signature / -Timestamp / -Event
-      // Express met les headers en minuscules. On garde un fallback vers les
-      // anciens noms (x-webhook-*) pour compatibilité.
+      // Noms officiels (guide webhook GeniusPay) :
+      //   X-Webhook-Signature / X-Webhook-Timestamp / X-Webhook-Event
+      // Express met les headers en minuscules. Fallback x-geniuspay-* par sécurité.
       const signature =
-        req.headers["x-geniuspay-signature"] || req.headers["x-webhook-signature"];
+        req.headers["x-webhook-signature"] || req.headers["x-geniuspay-signature"];
       const timestamp =
-        req.headers["x-geniuspay-timestamp"] || req.headers["x-webhook-timestamp"];
+        req.headers["x-webhook-timestamp"] || req.headers["x-geniuspay-timestamp"];
       const event =
-        req.headers["x-geniuspay-event"] || req.headers["x-webhook-event"];
+        req.headers["x-webhook-event"] || req.headers["x-geniuspay-event"];
 
       if (!signature) {
         logger.warn("GeniusPay webhook: signature manquante");
