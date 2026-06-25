@@ -19,6 +19,7 @@ router.get("/users", adminController.getAllUsers);
 router.delete("/users/:id", adminController.deleteUser);
 router.patch("/users/:id", adminController.updateUser);
 router.delete("/votes/:id", adminController.deleteVote);
+router.post("/votes/reset", adminController.resetVotes);
 router.get("/contests", adminController.getContests);
 router.post("/contest", adminController.createContest);
 router.patch("/contest/:id", adminController.updateContest);
