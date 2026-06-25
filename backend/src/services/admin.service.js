@@ -1,6 +1,7 @@
 const { PrismaClient } = require("@prisma/client");
 const { AppError } = require("../utils/errors");
 const { emitRankingUpdate } = require("../socket/socket");
+const { invalidateRankingCache } = require("./ranking.service");
 
 const prisma = new PrismaClient();
 const VALID_CANDIDATE_STATUSES = ["PENDING", "APPROVED", "REJECTED"];
@@ -138,6 +139,22 @@ async function deleteVote(id) {
   await emitRankingUpdate();
 }
 
+// ── Reset: remet TOUS les votes à zéro ─────────────────────────────────────────
+// Supprime tous les votes et remet totalVotes=0 sur chaque candidat.
+// Les paiements (historique) sont conservés.
+async function resetAllVotes() {
+  const deletedVotes = await prisma.$transaction(async (tx) => {
+    const deleted = await tx.vote.deleteMany({});
+    await tx.candidate.updateMany({ data: { totalVotes: 0 } });
+    return deleted.count;
+  });
+
+  invalidateRankingCache();   // vider le cache classement/stats
+  await emitRankingUpdate();  // pousser le nouveau classement en temps réel
+
+  return { deletedVotes };
+}
+
 // ── updateCandidate — supporte maintenant photoUrl ─────────────────────────────
 async function updateCandidate(id, { name, city, age, bio, type, status, photoUrl, instagram, tiktok, snap, whatsappFan, phone }) {
   const candidate = await prisma.candidate.findUnique({ where: { id } });
@@ -225,5 +242,5 @@ async function getAllUsers({ page, limit }) {
 
 module.exports = {
   getAllCandidates, approveCandidate, rejectCandidate, updateCandidate, deleteCandidate,
-  getAllPayments, refundPayment, deleteVote, getDashboardStats, getAllUsers
+  getAllPayments, refundPayment, deleteVote, resetAllVotes, getDashboardStats, getAllUsers
 };
