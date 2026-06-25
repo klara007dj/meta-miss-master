@@ -154,7 +154,7 @@ class AdminController {
 
   async deleteUser(req, res, next) {
     try {
-      
+
       const id = req.params.id; // CUID string
       if (req.user.id === id) return res.status(400).json({ success: false, message: "Vous ne pouvez pas vous supprimer vous-même." });
       await prisma.user.delete({ where: { id } });
@@ -164,7 +164,7 @@ class AdminController {
 
   async updateUser(req, res, next) {
     try {
-      
+
       const id = req.params.id; // CUID string
       const { name, email, role } = req.body;
       const user = await prisma.user.update({
@@ -181,6 +181,22 @@ class AdminController {
     try {
       await adminService.deleteVote(req.params.id);
       res.json({ success: true, message: "Vote supprimé (fraude)" });
+    } catch (err) { next(err); }
+  }
+
+  // ── Reset all votes ──────────────────────────────────────
+  async resetVotes(req, res, next) {
+    try {
+      // Garde-fou : l'action est destructive, on exige une confirmation explicite.
+      if (req.body?.confirm !== true) {
+        return res.status(400).json({ success: false, message: "Confirmation requise (confirm: true)" });
+      }
+      const result = await adminService.resetAllVotes();
+      res.json({
+        success: true,
+        message: `Tous les votes ont été remis à zéro (${result.deletedVotes} vote(s) supprimé(s))`,
+        data: result,
+      });
     } catch (err) { next(err); }
   }
 }
