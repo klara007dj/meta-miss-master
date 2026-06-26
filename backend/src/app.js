@@ -17,7 +17,10 @@ const adminRoutes = require("./routes/admin.routes");
 const contestRoutes = require("./routes/contest.routes");
 
 const app = express();
-app.set("trust proxy", 1);
+// SÉCURITÉ : nombre de proxys de confiance configurable selon l'infra réelle
+// (Railway = 1 ; Cloudflare + Railway = 2). Un mauvais réglage permet le spoof
+// de X-Forwarded-For et le contournement des rate-limits. Défaut : 1.
+app.set("trust proxy", Number(process.env.TRUST_PROXY ?? 1));
 
 // Security headers
 app.use(helmet({
@@ -60,7 +63,8 @@ app.use((req, res, next) => {
   if (req.path.startsWith("/api/payments/webhook/")) {
     return next(); // raw body géré dans la route elle-même
   }
-  express.json({ limit: "10mb" })(req, res, next);
+  // Limite réduite : les JSON métier sont petits (les photos passent par multer).
+  express.json({ limit: "256kb" })(req, res, next);
 });
 app.use((req, res, next) => {
   if (req.path.startsWith("/api/payments/webhook/")) {

@@ -746,11 +746,37 @@ async function processFapshiWebhook(body) {
     data: updateData,
   });
 
-  // FIX : comparaison insensible à la casse
-  if (isFapshiSuccessful(status)) {
+  // SÉCURITÉ : le webhook Fapshi n'est PAS signé. On ne fait jamais confiance au
+  // statut envoyé dans le body — on revérifie le statut réel auprès de l'API
+  // Fapshi avec le transId. Sans confirmation API, aucun crédit n'est accordé.
+  const transIdForCheck = transId || payment.flutterwaveFlwRef;
+  if (!transIdForCheck) {
+    logger.warn(`Fapshi webhook: transId manquant, vérification impossible txRef=${txRef}`);
+    await prisma.payment.update({
+      where: { id: payment.id },
+      data: { webhookReceived: false },
+    }).catch(() => {});
+    return;
+  }
+
+  let confirmedSuccessful;
+  try {
+    const verified = await verifyFapshi(transIdForCheck);
+    confirmedSuccessful = isFapshiSuccessful(verified.status);
+  } catch (err) {
+    // Vérification impossible pour l'instant → on n'inscrit rien et on autorise un retry.
+    logger.error(`Fapshi webhook: échec vérification API txRef=${txRef}`, err.message);
+    await prisma.payment.update({
+      where: { id: payment.id },
+      data: { webhookReceived: false },
+    }).catch(() => {});
+    return;
+  }
+
+  if (confirmedSuccessful) {
     try {
       await creditVotes(payment);
-      logger.info(`Fapshi webhook: votes crédités txRef=${txRef} votes=${payment.votesCount}`);
+      logger.info(`Fapshi webhook: votes crédités (statut confirmé API) txRef=${txRef} votes=${payment.votesCount}`);
     } catch (err) {
       // FIX : reset webhookReceived pour permettre un retry
       logger.error(`Fapshi webhook: erreur crédit txRef=${txRef}`, err.message);
@@ -765,7 +791,7 @@ async function processFapshiWebhook(body) {
       where: { id: payment.id },
       data: { status: "FAILED" },
     });
-    logger.warn(`Fapshi webhook: paiement non réussi txRef=${txRef} status=${status}`);
+    logger.warn(`Fapshi webhook: paiement non confirmé par l'API txRef=${txRef}`);
   }
 }
 

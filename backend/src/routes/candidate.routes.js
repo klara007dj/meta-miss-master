@@ -3,6 +3,7 @@ const { body } = require("express-validator");
 const candidateController = require("../controllers/candidate.controller");
 const { authenticate } = require("../middlewares/auth");
 const { upload } = require("../middlewares/upload");
+const { likeRateLimiter, candidacyRateLimiter } = require("../middlewares/rateLimiter");
 
 const router = express.Router();
 
@@ -18,10 +19,10 @@ const candidateValidation = [
 router.get("/", candidateController.getAll);
 router.get("/top", candidateController.getTopCandidates);
 router.get("/:id", candidateController.getById);
-router.post("/register", authenticate, upload.single("photo"), candidateValidation, candidateController.register);
+router.post("/register", candidacyRateLimiter, authenticate, upload.single("photo"), candidateValidation, candidateController.register);
 
-// ── Likes (pas d'auth requise — n'importe qui peut liker) ──────────────────
-router.post("/:id/like", candidateController.like);
-router.delete("/:id/like", candidateController.unlike);
+// ── Likes (pas d'auth requise — n'importe qui peut liker, mais rate-limité) ──
+router.post("/:id/like", likeRateLimiter, candidateController.like);
+router.delete("/:id/like", likeRateLimiter, candidateController.unlike);
 
 module.exports = router;
