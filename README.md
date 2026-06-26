@@ -74,7 +74,10 @@ cd backend && npm run dev   # port 5000
 cd frontend && npm run dev  # port 3000
 ```
 
-Compte admin seed : `admin@metamissmaster.cm` / `Admin@123456`
+Compte admin : la connexion se fait via `/auth/admin/login` avec les variables
+`ADMIN_EMAIL`, `ADMIN_PASSWORD(_HASH)`, `ADMIN_PROPERTY_NUMBER`,
+`ADMIN_MOTHER_FULL_NAME` (jamais via le login utilisateur). Ne publiez jamais
+d'identifiants réels ici, et changez/supprimez tout compte de seed en production.
 
 ---
 

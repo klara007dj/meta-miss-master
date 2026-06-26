@@ -30,10 +30,15 @@ async function findOrCreateVoter({ voterName, voterEmail, voterPhone }) {
     if (existing.role === "ADMIN") {
       throw new AppError("Cette adresse email ne peut pas etre utilisee pour voter", 400);
     }
-    return prisma.user.update({
-      where: { id: existing.id },
-      data: { name, phone },
-    });
+    // SÉCURITÉ : ne JAMAIS écraser le profil d'un compte existant avec des
+    // données de vote non authentifiées (sinon n'importe qui peut altérer le
+    // nom/téléphone d'un autre utilisateur via /payments/initialize).
+    // On complète uniquement les champs encore vides.
+    const data = {};
+    if (!existing.name && name) data.name = name;
+    if (!existing.phone && phone) data.phone = phone;
+    if (Object.keys(data).length === 0) return existing;
+    return prisma.user.update({ where: { id: existing.id }, data });
   }
 
   const passwordHash = await bcrypt.hash(uuidv4(), 10);
@@ -62,8 +67,6 @@ async function initFapshi({ txRef, amount, userEmail, candidateName, votesCount 
       },
     },
   );
-
-  logger.info("Fapshi raw response: " + JSON.stringify(response.data));
 
   const data = response.data;
 
@@ -104,7 +107,7 @@ async function verifyFapshi(transId) {
       },
     },
   );
-  logger.info("Fapshi verify response: " + JSON.stringify(response.data));
+  logger.info(`Fapshi verify response: status=${response.data?.status}`);
   return response.data;
 }
 
@@ -296,8 +299,6 @@ async function initGeniusPay({ txRef, amount, userEmail, userName, candidateName
     );
   }
 
-  logger.info("GeniusPay raw response: " + JSON.stringify(response.data));
-
   if (!response.data?.success || !response.data?.data) {
     logger.error("GeniusPay bad response:", response.data);
     throw new AppError(
@@ -346,7 +347,7 @@ async function verifyGeniusPay(identifiers) {
         `${GENIUSPAY_BASE_URL}/payments/${encodeURIComponent(id)}`,
         { headers },
       );
-      logger.info("GeniusPay verify response: " + JSON.stringify(response.data));
+      logger.info(`GeniusPay verify response: status=${response.data?.data?.status} ref=${response.data?.data?.reference}`);
       if (response.data?.data) return response.data.data;
     } catch (err) {
       logger.error(`GeniusPay verify error (id=${id}):`, err.response?.data || err.message);
@@ -423,7 +424,8 @@ async function processGeniusPayWebhook(body) {
     return;
   }
 
-  logger.info(`GeniusPay webhook event: ${event} | data: ${JSON.stringify(eventData)}`);
+  // SÉCURITÉ : on ne logge pas eventData complet (nom/téléphone/email client).
+  logger.info(`GeniusPay webhook event: ${event}`);
 
   if (event !== "payment.success") return;
 
@@ -702,11 +704,11 @@ async function verifyPayment(txRef) {
 // ─── FAPSHI WEBHOOK ───────────────────────────────────────────────────────────
 
 async function processFapshiWebhook(body) {
-  logger.info("Fapshi webhook received: " + JSON.stringify(body));
-
   // FIX : Fapshi peut envoyer externalId ou external_id selon la version
   const txRef = body.externalId || body.external_id;
   const status = body.status;
+  // SÉCURITÉ : on ne logge pas le body complet (PII). Seulement les identifiants.
+  logger.info(`Fapshi webhook received: txRef=${txRef} status=${status}`);
   // FIX : Fapshi peut envoyer transId ou trans_id
   const transId = body.transId || body.trans_id;
 
