@@ -7,6 +7,7 @@ const { AppError } = require("../utils/errors");
 const logger = require("../utils/logger");
 const { emitRankingUpdate } = require("../socket/socket");
 const { invalidateRankingCache } = require("./ranking.service");
+const settingsService = require("./settings.service");
 
 const VOTE_PRICE = 100;
 const GENIUSPAY_BASE_URL = "https://pay.genius.ci/api/v1/merchant";
@@ -540,11 +541,16 @@ async function initializePayment({ candidateId, amount, provider, region, operat
   if (!candidate) throw new AppError("Candidat introuvable ou non approuvé", 404);
 
   // `amount` = BASE (votes × 100). Les votes et le revenu se basent dessus.
-  const votesCount = amountToVotes(amount);
-  if (votesCount < 1) throw new AppError("Montant minimum : 100 FCFA", 400);
+  const baseVotes = amountToVotes(amount);
+  if (baseVotes < 1) throw new AppError("Montant minimum : 100 FCFA", 400);
 
   const validProviders = ["fapshi", "paypal", "geniuspay"];
   if (!validProviders.includes(provider)) throw new AppError("Provider invalide", 400);
+
+  // Promo "votes doubles" : si l'admin a activé l'option, les votes lancés
+  // pendant la période active comptent ×2 (le montant payé reste identique).
+  const doubleActive = await settingsService.getDoubleVotes();
+  const votesCount = doubleActive ? baseVotes * 2 : baseVotes;
 
   // Frais recalculés serveur (jamais ceux du client) + montant réellement facturé.
   const serviceFee = computeServiceFee({ provider, region, amount });
@@ -568,6 +574,8 @@ async function initializePayment({ candidateId, amount, provider, region, operat
         country: country || "CM",
         serviceFee,          // frais répercutés sur le votant
         chargeAmount,        // montant réellement débité (base + frais)
+        baseVotes,           // votes avant promo
+        doubleVotes: doubleActive, // promo ×2 appliquée à ce paiement
         candidateName: candidate.name,
         candidateType: candidate.type,
         voterName: voter.name,

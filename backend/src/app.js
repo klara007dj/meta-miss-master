@@ -16,6 +16,7 @@ const rankingRoutes = require("./routes/ranking.routes");
 const adminRoutes = require("./routes/admin.routes");
 const contestRoutes = require("./routes/contest.routes");
 const socialRoutes = require("./routes/social.routes");
+const settingsRoutes = require("./routes/settings.routes");
 
 const app = express();
 // SÉCURITÉ : nombre de proxys de confiance configurable selon l'infra réelle
@@ -97,6 +98,7 @@ app.use("/api/ranking", rankingRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/contest", contestRoutes);
 app.use("/api/social-links", socialRoutes);
+app.use("/api/settings", settingsRoutes);
 
 // 404
 app.use((req, res) => {

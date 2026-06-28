@@ -20,6 +20,8 @@ router.delete("/users/:id", adminController.deleteUser);
 router.patch("/users/:id", adminController.updateUser);
 router.delete("/votes/:id", adminController.deleteVote);
 router.post("/votes/reset", adminController.resetVotes);
+router.get("/double-votes", adminController.getDoubleVotes);
+router.put("/double-votes", adminController.setDoubleVotes);
 router.get("/social-links", adminController.getSocialLinks);
 router.put("/social-links", adminController.updateSocialLinks);
 router.get("/contests", adminController.getContests);

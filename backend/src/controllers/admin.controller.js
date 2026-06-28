@@ -200,6 +200,26 @@ class AdminController {
     } catch (err) { next(err); }
   }
 
+  // ── Votes doubles (promo) ────────────────────────────────
+  async getDoubleVotes(req, res, next) {
+    try {
+      const enabled = await settingsService.getDoubleVotes();
+      res.json({ success: true, data: { enabled } });
+    } catch (err) { next(err); }
+  }
+
+  async setDoubleVotes(req, res, next) {
+    try {
+      const enabled = req.body?.enabled === true || req.body?.enabled === "true";
+      const data = await settingsService.setDoubleVotes(enabled);
+      res.json({
+        success: true,
+        message: `Votes doubles ${data.enabled ? "activés" : "désactivés"}`,
+        data,
+      });
+    } catch (err) { next(err); }
+  }
+
   // ── Reset all votes ──────────────────────────────────────
   async resetVotes(req, res, next) {
     try {

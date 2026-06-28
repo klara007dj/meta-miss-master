@@ -12,10 +12,24 @@ const SOCIAL_KEYS = [
 
 const SINGLETON_ID = "site-settings";
 
-// Retourne toujours les 6 clés (chaîne vide si non définie).
-async function getSocialLinks() {
+// ─── Accès bas niveau (fusion, jamais d'écrasement total) ───────────────────
+async function getRaw() {
   const row = await prisma.siteSetting.findUnique({ where: { id: SINGLETON_ID } });
-  const data = (row && row.data) || {};
+  return (row && row.data) || {};
+}
+
+async function saveRaw(data) {
+  await prisma.siteSetting.upsert({
+    where: { id: SINGLETON_ID },
+    update: { data },
+    create: { id: SINGLETON_ID, data },
+  });
+  return data;
+}
+
+// ─── Réseaux sociaux ────────────────────────────────────────────────────────
+async function getSocialLinks() {
+  const data = await getRaw();
   const out = {};
   for (const k of SOCIAL_KEYS) {
     out[k] = typeof data[k] === "string" ? data[k] : "";
@@ -23,22 +37,38 @@ async function getSocialLinks() {
   return out;
 }
 
-// Met à jour les liens : on ne garde que les clés autorisées, valeurs en string
-// tronquées à 500 caractères. Renvoie l'état final normalisé.
 async function updateSocialLinks(input = {}) {
-  const clean = {};
+  const data = await getRaw();
+  const merged = { ...data }; // on conserve les autres réglages (ex: doubleVotes)
   for (const k of SOCIAL_KEYS) {
     const v = input[k];
-    clean[k] = typeof v === "string" ? v.trim().slice(0, 500) : "";
+    merged[k] = typeof v === "string" ? v.trim().slice(0, 500) : "";
   }
-
-  await prisma.siteSetting.upsert({
-    where: { id: SINGLETON_ID },
-    update: { data: clean },
-    create: { id: SINGLETON_ID, data: clean },
-  });
-
+  await saveRaw(merged);
   return getSocialLinks();
 }
 
-module.exports = { getSocialLinks, updateSocialLinks, SOCIAL_KEYS };
+// ─── Votes doubles (promo activable par l'admin) ────────────────────────────
+async function getDoubleVotes() {
+  const data = await getRaw();
+  return data.doubleVotes === true;
+}
+
+async function setDoubleVotes(enabled) {
+  const data = await getRaw();
+  const value = enabled === true || enabled === "true";
+  await saveRaw({
+    ...data,
+    doubleVotes: value,
+    doubleVotesUpdatedAt: new Date().toISOString(),
+  });
+  return { enabled: value };
+}
+
+module.exports = {
+  getSocialLinks,
+  updateSocialLinks,
+  getDoubleVotes,
+  setDoubleVotes,
+  SOCIAL_KEYS,
+};
