@@ -18,6 +18,23 @@ function amountToVotes(amount) {
   return Math.floor(amount / VOTE_PRICE);
 }
 
+// ─── FRAIS DE SERVICE ───────────────────────────────────────────────────────
+// Frais GeniusPay répercutés sur le votant (opérateur + 1% GeniusPay + 100 XOF).
+// IMPORTANT : calculés CÔTÉ SERVEUR (on ne fait pas confiance au feeAmount du
+// client, sinon il pourrait forcer 0). Mêmes formules que le front.
+//   africa : 4.5% + 100 · europe/cards : 6% + 100 · Fapshi/PayPal : 0
+const GENIUSPAY_FEES = {
+  africa: { percent: 4.5, fixed: 100 },
+  europe: { percent: 6, fixed: 100 },
+  cards: { percent: 6, fixed: 100 },
+};
+
+function computeServiceFee({ provider, region, amount }) {
+  if (provider !== "geniuspay") return 0; // Fapshi (Orange/MTN) et PayPal : pas de frais ajoutés
+  const cfg = GENIUSPAY_FEES[region] || GENIUSPAY_FEES.africa;
+  return Math.ceil((amount * cfg.percent) / 100) + cfg.fixed;
+}
+
 // ─── VOTER ────────────────────────────────────────────────────────────────────
 
 async function findOrCreateVoter({ voterName, voterEmail, voterPhone }) {
@@ -513,7 +530,7 @@ async function processGeniusPayWebhook(body) {
 
 // ─── INITIALIZE PAYMENT ───────────────────────────────────────────────────────
 
-async function initializePayment({ candidateId, amount, provider, country, voterName, voterEmail, voterPhone }) {
+async function initializePayment({ candidateId, amount, provider, region, operator, country, voterName, voterEmail, voterPhone }) {
   const contest = await prisma.contest.findFirst({ where: { status: "OPEN" } });
   if (!contest) throw new AppError("Les votes sont actuellement fermés", 403);
 
@@ -522,11 +539,16 @@ async function initializePayment({ candidateId, amount, provider, country, voter
   });
   if (!candidate) throw new AppError("Candidat introuvable ou non approuvé", 404);
 
+  // `amount` = BASE (votes × 100). Les votes et le revenu se basent dessus.
   const votesCount = amountToVotes(amount);
   if (votesCount < 1) throw new AppError("Montant minimum : 100 FCFA", 400);
 
   const validProviders = ["fapshi", "paypal", "geniuspay"];
   if (!validProviders.includes(provider)) throw new AppError("Provider invalide", 400);
+
+  // Frais recalculés serveur (jamais ceux du client) + montant réellement facturé.
+  const serviceFee = computeServiceFee({ provider, region, amount });
+  const chargeAmount = amount + serviceFee;
 
   const voter = await findOrCreateVoter({ voterName, voterEmail, voterPhone });
   const txRef = `MMM-${provider.toUpperCase()}-${uuidv4()}`;
@@ -535,13 +557,17 @@ async function initializePayment({ candidateId, amount, provider, country, voter
     data: {
       userId: voter.id,
       candidateId,
-      amount,
+      amount, // BASE — sert aux votes et au revenu (les frais vont au PSP)
       votesCount,
       flutterwaveTxRef: txRef,
       status: "PENDING",
       metadata: {
         provider,
+        region: region || null,
+        operator: operator || null,
         country: country || "CM",
+        serviceFee,          // frais répercutés sur le votant
+        chargeAmount,        // montant réellement débité (base + frais)
         candidateName: candidate.name,
         candidateType: candidate.type,
         voterName: voter.name,
@@ -553,7 +579,7 @@ async function initializePayment({ candidateId, amount, provider, country, voter
 
   const params = {
     txRef,
-    amount,
+    amount: chargeAmount, // SÉCURITÉ/FACTURATION : on facture base + frais au PSP
     userEmail: voter.email,
     userName: voter.name || voter.email,
     candidateName: candidate.name,
@@ -618,7 +644,9 @@ async function initializePayment({ candidateId, amount, provider, country, voter
     txRef,
     paymentLink,
     votesCount,
-    amount,
+    amount,              // base (votes)
+    serviceFee,          // frais
+    chargeAmount,        // total débité
     candidateName: candidate.name,
     provider,
   };

@@ -10,7 +10,7 @@ class PaymentController {
         return res.status(422).json({ success: false, errors: errors.array() });
       }
 
-      const { candidateId, amount, provider, country, voterName, voterEmail, voterPhone } = req.body;
+      const { candidateId, amount, provider, region, operator, country, voterName, voterEmail, voterPhone } = req.body;
 
       const minAmount = provider === "geniuspay" ? 200 : 100;
       if (amount < minAmount) {
@@ -22,8 +22,10 @@ class PaymentController {
 
       const result = await paymentService.initializePayment({
         candidateId,
-        amount: Math.floor(amount),
+        amount: Math.floor(amount), // BASE (votes) ; les frais sont recalculés serveur
         provider: provider || "fapshi",
+        region,
+        operator,
         country,
         voterName,
         voterEmail,

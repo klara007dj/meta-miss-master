@@ -36,6 +36,22 @@ router.post(
       .isIn(["fapshi", "paypal", "geniuspay"])
       .withMessage("Provider invalide"),
 
+    body("region")
+      .optional({ nullable: true, checkFalsy: true })
+      .isIn(["africa", "europe", "cards"])
+      .withMessage("Région invalide"),
+
+    body("operator")
+      .optional({ nullable: true, checkFalsy: true })
+      .isIn(["orange", "mtn"])
+      .withMessage("Opérateur invalide"),
+
+    // feeAmount est accepté mais ignoré : les frais sont recalculés côté serveur.
+    body("feeAmount")
+      .optional({ nullable: true })
+      .isInt({ min: 0 })
+      .withMessage("Frais invalides"),
+
     body("country")
       .optional({ nullable: true, checkFalsy: true })
       .trim()
