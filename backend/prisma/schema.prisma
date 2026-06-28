@@ -132,3 +132,10 @@ model SystemLog {
   meta      Json?
   createdAt DateTime @default(now())
 }
+
+// Réglages du site (singleton) : liens réseaux sociaux affichés sur la page Support.
+model SiteSetting {
+  id        String   @id @default("site-settings")
+  data      Json?
+  updatedAt DateTime @updatedAt
+}

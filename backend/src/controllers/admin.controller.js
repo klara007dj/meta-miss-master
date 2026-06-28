@@ -2,6 +2,7 @@ const prisma = require("../utils/prismaClient");
 const adminService = require("../services/admin.service");
 const candidateService = require("../services/candidate.service");
 const contestService = require("../services/contest.service");
+const settingsService = require("../services/settings.service");
 
 class AdminController {
   // ── Candidates ──────────────────────────────────────────
@@ -181,6 +182,21 @@ class AdminController {
     try {
       await adminService.deleteVote(req.params.id);
       res.json({ success: true, message: "Vote supprimé (fraude)" });
+    } catch (err) { next(err); }
+  }
+
+  // ── Réseaux sociaux du site ──────────────────────────────
+  async getSocialLinks(req, res, next) {
+    try {
+      const data = await settingsService.getSocialLinks();
+      res.json({ success: true, data });
+    } catch (err) { next(err); }
+  }
+
+  async updateSocialLinks(req, res, next) {
+    try {
+      const data = await settingsService.updateSocialLinks(req.body || {});
+      res.json({ success: true, message: "Réseaux sociaux mis à jour", data });
     } catch (err) { next(err); }
   }
 
