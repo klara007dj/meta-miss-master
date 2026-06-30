@@ -529,8 +529,8 @@ async function processGeniusPayWebhook(body) {
   }
 }
 
-// ─── KPAY (Mobile Money Afrique — USSD) ────────────────────────────────────────
-// Alternative TEMPORAIRE à GeniusPay pour la région "africa" (USSD push direct).
+// ─── KPAY (Mobile Money Afrique — GATEWAY) ─────────────────────────────────────
+// Alternative TEMPORAIRE à GeniusPay pour la région "africa" (page hébergée KPay).
 // Europe + Cartes restent sur GeniusPay.
 const KPAY_BASE_URL = "https://admin.kpay.site/api/v1";
 
@@ -575,19 +575,15 @@ async function kpayPredictProvider(phoneNumber) {
   }
 }
 
-async function initKPay({ txRef, amount, phoneNumber, country, userEmail, userName, candidateName }) {
+// Mode GATEWAY : KPay héberge la page de paiement, on redirige le votant vers
+// gatewayUrl. Le client choisit lui-même opérateur + numéro sur la page KPay.
+async function initKPay({ txRef, amount, candidateName }) {
   if (!process.env.KPAY_API_KEY || !process.env.KPAY_SECRET_KEY) {
     throw new AppError("Clés KPay non configurées", 500);
   }
-  if (!phoneNumber) {
-    throw new AppError("Numéro Mobile Money requis pour le paiement USSD", 400);
-  }
 
-  const phone = kpayNormalizePhone(phoneNumber, country);
-  const provider = await kpayPredictProvider(phone);
-  if (!provider) {
-    throw new AppError("Impossible de déterminer l'opérateur Mobile Money pour ce numéro", 400);
-  }
+  const returnUrl = `${process.env.FRONTEND_URL}/vote/callback?tx_ref=${txRef}&provider=kpay`;
+  const cancelUrl = `${process.env.FRONTEND_URL}/vote/callback?tx_ref=${txRef}&provider=kpay&status=cancelled`;
 
   let response;
   try {
@@ -595,12 +591,10 @@ async function initKPay({ txRef, amount, phoneNumber, country, userEmail, userNa
       `${KPAY_BASE_URL}/payments/init`,
       {
         amount,
-        provider,
-        phoneNumber: phone,
         externalId: txRef,
+        returnUrl,
+        cancelUrl,
         description: `Vote(s) pour ${candidateName}`.substring(0, 140),
-        customerName: (userName || "Votant").substring(0, 100),
-        customerEmail: userEmail,
         metadata: { txRef, candidateName },
       },
       { headers: kpayHeaders() },
@@ -611,10 +605,16 @@ async function initKPay({ txRef, amount, phoneNumber, country, userEmail, userNa
   }
 
   const data = response.data || {};
-  logger.info(`KPay payment created: id=${data.id} ref=${data.reference} provider=${provider} status=${data.status}`);
+  const gatewayUrl = data.gatewayUrl || data.gateway_url;
+  if (!gatewayUrl) {
+    logger.error("KPay: pas de gatewayUrl dans la réponse:", data);
+    throw new AppError("KPay n'a pas retourné de lien de paiement", 502);
+  }
+
+  logger.info(`KPay gateway created: id=${data.id} ref=${data.reference}`);
 
   return {
-    paymentLink: null, // USSD : pas de redirection, le client valide sur son téléphone
+    paymentLink: gatewayUrl, // GATEWAY : redirection vers la page KPay
     kpayId: data.id != null ? String(data.id) : null,
     kpayReference: data.reference || (data.id != null ? String(data.id) : null),
   };
@@ -735,8 +735,8 @@ async function initializePayment({ candidateId, amount, provider, region, operat
   const serviceFee = computeServiceFee({ provider, region, amount });
   const chargeAmount = amount + serviceFee;
 
-  // TEMP : pour l'Afrique, on bascule de GeniusPay vers KPay (USSD direct).
-  // Europe + Cartes restent sur GeniusPay.
+  // TEMP : pour l'Afrique, on bascule de GeniusPay vers KPay (mode GATEWAY,
+  // redirection vers la page hébergée KPay). Europe + Cartes restent sur GeniusPay.
   const useKPay = provider === "geniuspay" && region === "africa";
 
   const voter = await findOrCreateVoter({ voterName, voterEmail, voterPhone });
@@ -808,17 +808,13 @@ async function initializePayment({ candidateId, amount, provider, region, operat
 
     } else if (provider === "geniuspay") {
       if (useKPay) {
-        // ── AFRIQUE : KPay en USSD (push direct, pas de redirection) ──
+        // ── AFRIQUE : KPay en mode GATEWAY (redirection vers la page KPay) ──
         const result = await initKPay({
           txRef,
           amount: chargeAmount,
-          phoneNumber: voterPhone, // numéro saisi par le votant (push USSD)
-          country,
-          userEmail: voter.email,
-          userName: voter.name,
           candidateName: candidate.name,
         });
-        paymentLink = result.paymentLink; // null en USSD
+        paymentLink = result.paymentLink; // URL de la passerelle KPay → redirection
         await prisma.payment.update({
           where: { id: payment.id },
           data: {
