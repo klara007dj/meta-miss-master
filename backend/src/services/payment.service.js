@@ -735,9 +735,12 @@ async function initializePayment({ candidateId, amount, provider, region, operat
   const serviceFee = computeServiceFee({ provider, region, amount });
   const chargeAmount = amount + serviceFee;
 
-  // TEMP : pour l'Afrique, on bascule de GeniusPay vers KPay (mode GATEWAY,
-  // redirection vers la page hébergée KPay). Europe + Cartes restent sur GeniusPay.
-  const useKPay = provider === "geniuspay" && region === "africa";
+  // KPay DÉSACTIVÉ (commenté) : GeniusPay est de nouveau opérationnel, l'Afrique
+  // repasse donc sur GeniusPay (comme l'Europe + les Cartes). Le code KPay reste
+  // en place (init/verify/webhooks) au cas où on voudrait rebasculer plus tard ;
+  // il suffira de rétablir la ligne ci-dessous.
+  // const useKPay = provider === "geniuspay" && region === "africa";
+  const useKPay = false;
 
   const voter = await findOrCreateVoter({ voterName, voterEmail, voterPhone });
   const txRef = `MMM-${provider.toUpperCase()}-${uuidv4()}`;
