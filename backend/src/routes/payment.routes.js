@@ -19,6 +19,13 @@ router.post(
   paymentController.webhookGeniusPay
 );
 
+// ── KPay (Mobile Money Afrique) ───────────────────────────────────────────────
+// Générique (fallback) + Dépôts → créditent les votes. Payout/Refund → no-op.
+router.post("/webhook/kpay", express.raw({ type: "*/*" }), paymentController.webhookKpay);
+router.post("/webhook/kpay/deposit", express.raw({ type: "*/*" }), paymentController.webhookKpay);
+router.post("/webhook/kpay/payout", express.raw({ type: "*/*" }), paymentController.webhookKpayNoop);
+router.post("/webhook/kpay/refund", express.raw({ type: "*/*" }), paymentController.webhookKpayNoop);
+
 // ─── Initialize payment ───────────────────────────────────────────────────────
 router.post(
   "/initialize",

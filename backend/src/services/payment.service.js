@@ -529,6 +529,185 @@ async function processGeniusPayWebhook(body) {
   }
 }
 
+// ─── KPAY (Mobile Money Afrique — USSD) ────────────────────────────────────────
+// Alternative TEMPORAIRE à GeniusPay pour la région "africa" (USSD push direct).
+// Europe + Cartes restent sur GeniusPay.
+const KPAY_BASE_URL = "https://admin.kpay.site/api/v1";
+
+const KPAY_COUNTRY_CODES = {
+  CI: "225", SN: "221", ML: "223", BF: "226", BJ: "229",
+  TG: "228", CM: "237", GH: "233", NG: "234",
+};
+
+function kpayHeaders() {
+  return {
+    "X-API-Key": process.env.KPAY_API_KEY,
+    "X-Secret-Key": process.env.KPAY_SECRET_KEY,
+    "Content-Type": "application/json",
+  };
+}
+
+// Normalise un numéro au format international attendu par KPay (chiffres, sans +/0 initial).
+function kpayNormalizePhone(phone, country) {
+  let p = String(phone || "").replace(/\D/g, "");
+  p = p.replace(/^0+/, "");
+  const code = KPAY_COUNTRY_CODES[country];
+  if (code && !p.startsWith(code)) p = code + p;
+  return p;
+}
+
+function isKPaySuccessful(status) {
+  return String(status || "").toUpperCase() === "COMPLETED";
+}
+
+// Déduit le provider Mobile Money (MTN_MOMO_CIV, ORANGE_SEN…) à partir du numéro.
+async function kpayPredictProvider(phoneNumber) {
+  try {
+    const r = await axios.post(
+      `${KPAY_BASE_URL}/payments/predict-provider`,
+      { phoneNumber },
+      { headers: kpayHeaders() },
+    );
+    return r.data?.provider || null;
+  } catch (err) {
+    logger.error("KPay predict-provider error:", err.response?.data || err.message);
+    return null;
+  }
+}
+
+async function initKPay({ txRef, amount, phoneNumber, country, userEmail, userName, candidateName }) {
+  if (!process.env.KPAY_API_KEY || !process.env.KPAY_SECRET_KEY) {
+    throw new AppError("Clés KPay non configurées", 500);
+  }
+  if (!phoneNumber) {
+    throw new AppError("Numéro Mobile Money requis pour le paiement USSD", 400);
+  }
+
+  const phone = kpayNormalizePhone(phoneNumber, country);
+  const provider = await kpayPredictProvider(phone);
+  if (!provider) {
+    throw new AppError("Impossible de déterminer l'opérateur Mobile Money pour ce numéro", 400);
+  }
+
+  let response;
+  try {
+    response = await axios.post(
+      `${KPAY_BASE_URL}/payments/init`,
+      {
+        amount,
+        provider,
+        phoneNumber: phone,
+        externalId: txRef,
+        description: `Vote(s) pour ${candidateName}`.substring(0, 140),
+        customerName: (userName || "Votant").substring(0, 100),
+        customerEmail: userEmail,
+        metadata: { txRef, candidateName },
+      },
+      { headers: kpayHeaders() },
+    );
+  } catch (err) {
+    logger.error("KPay init error:", err.response?.data || err.message);
+    throw new AppError(`Erreur KPay: ${err.response?.data?.message || err.message}`, 502);
+  }
+
+  const data = response.data || {};
+  logger.info(`KPay payment created: id=${data.id} ref=${data.reference} provider=${provider} status=${data.status}`);
+
+  return {
+    paymentLink: null, // USSD : pas de redirection, le client valide sur son téléphone
+    kpayId: data.id != null ? String(data.id) : null,
+    kpayReference: data.reference || (data.id != null ? String(data.id) : null),
+  };
+}
+
+async function verifyKPay(kpayId) {
+  if (!kpayId) return null;
+  try {
+    const r = await axios.get(
+      `${KPAY_BASE_URL}/payments/${encodeURIComponent(kpayId)}`,
+      { headers: kpayHeaders() },
+    );
+    logger.info(`KPay verify: id=${kpayId} status=${r.data?.status}`);
+    return r.data || null;
+  } catch (err) {
+    logger.error("KPay verify error:", err.response?.data || err.message);
+    return null;
+  }
+}
+
+// Vérifie la signature HMAC-SHA256 du webhook KPay (sur le corps BRUT reçu).
+function verifyKPaySignature({ signature, body }) {
+  const secret = process.env.KPAY_WEBHOOK_SECRET;
+  if (!secret || !signature) return false;
+  try {
+    const raw = Buffer.isBuffer(body) ? body.toString("utf8") : String(body);
+    const expected = crypto.createHmac("sha256", secret).update(raw).digest("hex");
+    const a = Buffer.from(expected, "hex");
+    const b = Buffer.from(String(signature), "hex");
+    return a.length === b.length && crypto.timingSafeEqual(a, b);
+  } catch (err) {
+    logger.error("KPay signature verification error:", err.message);
+    return false;
+  }
+}
+
+async function processKPayWebhook(body) {
+  const event = body.event;
+  if (!event) return;
+
+  // On ne traite que les dépôts (paiements). Payout/refund non utilisés ici.
+  if (!String(event).startsWith("payment.")) {
+    logger.info(`KPay webhook ignoré (non-dépôt): ${event}`);
+    return;
+  }
+
+  const externalId = body.externalId;
+  const kpayId = body.paymentId;
+  logger.info(`KPay webhook: event=${event} externalId=${externalId} id=${kpayId}`);
+
+  let payment = null;
+  if (externalId) {
+    payment = await prisma.payment.findUnique({ where: { flutterwaveTxRef: externalId } });
+  }
+  if (!payment && kpayId) {
+    payment = await prisma.payment.findFirst({ where: { flutterwaveFlwRef: String(kpayId) } });
+  }
+  if (!payment) {
+    logger.warn(`KPay webhook: paiement introuvable (externalId=${externalId} id=${kpayId})`);
+    return;
+  }
+  if (payment.status === "COMPLETED") return;
+
+  if (event === "payment.failed" || event === "payment.cancelled") {
+    await prisma.payment.update({ where: { id: payment.id }, data: { status: "FAILED", webhookReceived: true } });
+    logger.warn(`KPay webhook: paiement échoué/annulé txRef=${payment.flutterwaveTxRef}`);
+    return;
+  }
+
+  // SÉCURITÉ : on revérifie le statut réel via l'API KPay avant de créditer.
+  let confirmed = false;
+  try {
+    const verified = await verifyKPay(kpayId || payment.flutterwaveFlwRef);
+    confirmed = isKPaySuccessful(verified?.status);
+  } catch (_) {
+    confirmed = false;
+  }
+
+  if (event === "payment.completed" && confirmed) {
+    try {
+      await prisma.payment.update({ where: { id: payment.id }, data: { webhookReceived: true } });
+      await creditVotes(payment);
+      logger.info(`KPay webhook: votes crédités txRef=${payment.flutterwaveTxRef} votes=${payment.votesCount}`);
+    } catch (err) {
+      logger.error(`KPay webhook: erreur crédit txRef=${payment.flutterwaveTxRef}`, err.message);
+      await prisma.payment.update({ where: { id: payment.id }, data: { webhookReceived: false } }).catch(() => {});
+      throw err;
+    }
+  } else {
+    logger.info(`KPay webhook: pas de crédit (event=${event} confirmé=${confirmed})`);
+  }
+}
+
 // ─── INITIALIZE PAYMENT ───────────────────────────────────────────────────────
 
 async function initializePayment({ candidateId, amount, provider, region, operator, country, voterName, voterEmail, voterPhone }) {
@@ -556,6 +735,10 @@ async function initializePayment({ candidateId, amount, provider, region, operat
   const serviceFee = computeServiceFee({ provider, region, amount });
   const chargeAmount = amount + serviceFee;
 
+  // TEMP : pour l'Afrique, on bascule de GeniusPay vers KPay (USSD direct).
+  // Europe + Cartes restent sur GeniusPay.
+  const useKPay = provider === "geniuspay" && region === "africa";
+
   const voter = await findOrCreateVoter({ voterName, voterEmail, voterPhone });
   const txRef = `MMM-${provider.toUpperCase()}-${uuidv4()}`;
 
@@ -569,6 +752,7 @@ async function initializePayment({ candidateId, amount, provider, region, operat
       status: "PENDING",
       metadata: {
         provider,
+        gateway: useKPay ? "kpay" : provider, // passerelle réellement utilisée
         region: region || null,
         operator: operator || null,
         country: country || "CM",
@@ -623,17 +807,39 @@ async function initializePayment({ candidateId, amount, provider, region, operat
       });
 
     } else if (provider === "geniuspay") {
-      const result = await initGeniusPay(params);
-      paymentLink = result.paymentLink;
-      // FIX : flutterwaveFlwRef = ID interne (pour verifyGeniusPay)
-      //        flutterwaveTransId = référence humaine (pour traçabilité)
-      await prisma.payment.update({
-        where: { id: payment.id },
-        data: {
-          flutterwaveFlwRef: result.geniuspayId,
-          flutterwaveTransId: result.geniuspayReference,
-        },
-      });
+      if (useKPay) {
+        // ── AFRIQUE : KPay en USSD (push direct, pas de redirection) ──
+        const result = await initKPay({
+          txRef,
+          amount: chargeAmount,
+          phoneNumber: voterPhone, // numéro saisi par le votant (push USSD)
+          country,
+          userEmail: voter.email,
+          userName: voter.name,
+          candidateName: candidate.name,
+        });
+        paymentLink = result.paymentLink; // null en USSD
+        await prisma.payment.update({
+          where: { id: payment.id },
+          data: {
+            flutterwaveFlwRef: result.kpayId,
+            flutterwaveTransId: result.kpayReference,
+          },
+        });
+      } else {
+        // ── EUROPE + CARTES : GeniusPay (inchangé) ──
+        const result = await initGeniusPay(params);
+        paymentLink = result.paymentLink;
+        // FIX : flutterwaveFlwRef = ID interne (pour verifyGeniusPay)
+        //        flutterwaveTransId = référence humaine (pour traçabilité)
+        await prisma.payment.update({
+          where: { id: payment.id },
+          data: {
+            flutterwaveFlwRef: result.geniuspayId,
+            flutterwaveTransId: result.geniuspayReference,
+          },
+        });
+      }
     }
   } catch (err) {
     await prisma.payment.update({
@@ -680,12 +886,19 @@ async function verifyPayment(txRef) {
     return { status: "FAILED", message: "Paiement échoué" };
   }
 
-  const provider = payment.metadata?.provider || "fapshi";
+  // On route sur la passerelle réellement utilisée (gateway), avec repli sur provider.
+  const provider = payment.metadata?.gateway || payment.metadata?.provider || "fapshi";
 
   try {
     let success = false;
 
-    if (provider === "fapshi") {
+    if (provider === "kpay") {
+      const kpayId = payment.flutterwaveFlwRef;
+      if (!kpayId) return { status: "PENDING", message: "En attente KPay" };
+      const result = await verifyKPay(kpayId);
+      success = isKPaySuccessful(result?.status);
+
+    } else if (provider === "fapshi") {
       const transId = payment.flutterwaveFlwRef;
       if (!transId) {
         // FIX : si transId manque, on attend le webhook — on ne peut pas vérifier
@@ -897,6 +1110,8 @@ module.exports = {
   processFapshiWebhook,
   processGeniusPayWebhook,
   verifyGeniusPaySignature,
+  processKPayWebhook,
+  verifyKPaySignature,
   getUserPayments,
   creditVotes,
 };

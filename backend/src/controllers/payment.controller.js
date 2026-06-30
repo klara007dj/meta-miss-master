@@ -109,6 +109,37 @@ class PaymentController {
     }
   }
 
+  // Webhook KPay (dépôts) : générique + /deposit pointent ici.
+  async webhookKpay(req, res) {
+    try {
+      const signature = req.headers["x-kpay-signature"];
+      if (!paymentService.verifyKPaySignature({ signature, body: req.body })) {
+        logger.warn("KPay webhook: signature invalide");
+        return res.status(401).json({ message: "Signature invalide" });
+      }
+      const raw = Buffer.isBuffer(req.body) ? req.body.toString("utf8") : req.body;
+      const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+      await paymentService.processKPayWebhook(parsed);
+      res.status(200).json({ message: "OK" });
+    } catch (err) {
+      logger.error("KPay webhook error:", err);
+      res.status(200).json({ message: "Received" });
+    }
+  }
+
+  // Webhook KPay payout/refund : non utilisés ici. On vérifie la signature et on
+  // répond 200 (sinon KPay réessaie). Aucun traitement métier.
+  async webhookKpayNoop(req, res) {
+    try {
+      const signature = req.headers["x-kpay-signature"];
+      const ok = paymentService.verifyKPaySignature({ signature, body: req.body });
+      logger.info(`KPay webhook (payout/refund) reçu, signature=${ok ? "OK" : "invalide"}`);
+    } catch (err) {
+      logger.error("KPay webhook (noop) error:", err);
+    }
+    res.status(200).json({ message: "OK" });
+  }
+
   async history(req, res, next) {
     try {
       const { page = 1, limit = 20 } = req.query;
