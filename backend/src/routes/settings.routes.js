@@ -20,7 +20,14 @@ router.get("/double-votes", rankingRateLimiter, async (req, res, next) => {
 // l'horloge serveur (indépendamment d'une horloge client éventuellement fausse).
 router.get("/contest", rankingRateLimiter, async (req, res, next) => {
   try {
-    const contest = await contestService.getActive();
+    // On prend le concours ouvert ; sinon on retombe sur le plus récent créé.
+    // Ainsi le compte à rebours peut s'afficher AVANT même l'ouverture des votes
+    // (un concours programmé avec une date de début future suffit).
+    let contest = await contestService.getActive();
+    if (!contest) {
+      const all = await contestService.getAll();
+      contest = all && all.length ? all[0] : null;
+    }
     const serverTime = new Date().toISOString();
     if (!contest) {
       return res.json({ success: true, data: { contest: null, serverTime } });
