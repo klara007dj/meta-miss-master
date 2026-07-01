@@ -10,22 +10,15 @@ class PaymentController {
         return res.status(422).json({ success: false, errors: errors.array() });
       }
 
-      const { candidateId, amount, provider, region, operator, country, voterName, voterEmail, voterPhone } = req.body;
+      const { candidateId, amount, provider, region, country, voterName, voterEmail, voterPhone } = req.body;
 
-      const minAmount = provider === "geniuspay" ? 200 : 100;
-      if (amount < minAmount) {
-        return res.status(400).json({
-          success: false,
-          message: `Montant minimum : ${minAmount} FCFA${provider === "geniuspay" ? " (2 votes minimum avec GeniusPay)" : " (1 vote)"}`,
-        });
-      }
-
+      // Le provider et le montant minimum sont RE-DÉRIVÉS côté service à partir
+      // de (region, country) — on ne fait pas confiance au provider du client.
       const result = await paymentService.initializePayment({
         candidateId,
         amount: Math.floor(amount), // BASE (votes) ; les frais sont recalculés serveur
-        provider: provider || "fapshi",
+        provider,
         region,
-        operator,
         country,
         voterName,
         voterEmail,

@@ -39,8 +39,11 @@ router.post(
       .isInt({ min: 100 })
       .withMessage("Montant minimum 100 FCFA"),
 
+    // provider est accepté mais RE-DÉRIVÉ côté serveur depuis (region, country) :
+    // source de vérité = resolveProvider (payment.service) — anti-contournement.
     body("provider")
-      .isIn(["fapshi", "paypal", "geniuspay"])
+      .optional({ nullable: true, checkFalsy: true })
+      .isIn(["fapshi", "paypal", "geniuspay", "kpay"])
       .withMessage("Provider invalide"),
 
     body("region")
@@ -48,22 +51,23 @@ router.post(
       .isIn(["africa", "europe", "cards"])
       .withMessage("Région invalide"),
 
-    body("operator")
-      .optional({ nullable: true, checkFalsy: true })
-      .isIn(["orange", "mtn"])
-      .withMessage("Opérateur invalide"),
-
     // feeAmount est accepté mais ignoré : les frais sont recalculés côté serveur.
     body("feeAmount")
       .optional({ nullable: true })
       .isInt({ min: 0 })
       .withMessage("Frais invalides"),
 
-    body("country")
-      .optional({ nullable: true, checkFalsy: true })
-      .trim()
-      .isLength({ min: 2, max: 60 })
-      .withMessage("Pays invalide"),
+    // Pays : requis pour la méthode "Afrique" (il sert au routage du provider).
+    body("country").custom((value, { req }) => {
+      const v = value ? String(value).trim() : "";
+      if (req.body.region === "africa" && v.length < 2) {
+        throw new Error("Pays requis (méthode Afrique)");
+      }
+      if (v && (v.length < 2 || v.length > 60)) {
+        throw new Error("Pays invalide");
+      }
+      return true;
+    }),
 
     body("voterName")
       .trim()

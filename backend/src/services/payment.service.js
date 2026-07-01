@@ -31,9 +31,64 @@ const GENIUSPAY_FEES = {
 };
 
 function computeServiceFee({ provider, region, amount }) {
-  if (provider !== "geniuspay") return 0; // Fapshi (Orange/MTN) et PayPal : pas de frais ajoutés
+  if (provider !== "geniuspay") return 0; // Fapshi, KPay et PayPal : pas de frais ajoutés
   const cfg = GENIUSPAY_FEES[region] || GENIUSPAY_FEES.africa;
   return Math.ceil((amount * cfg.percent) / 100) + cfg.fixed;
+}
+
+// ─── PAYS / ROUTAGE PROVIDER ─────────────────────────────────────────────────
+
+const COUNTRY_ISO2 = {
+  "cameroun": "CM", "cameroon": "CM",
+  "côte d'ivoire": "CI", "cote d'ivoire": "CI", "cote divoire": "CI", "ivory coast": "CI",
+  "sénégal": "SN", "senegal": "SN",
+  "mali": "ML",
+  "burkina faso": "BF", "burkina": "BF",
+  "bénin": "BJ", "benin": "BJ",
+  "togo": "TG",
+  "niger": "NE",
+  "guinée": "GN", "guinee": "GN",
+  "ghana": "GH",
+  "nigeria": "NG",
+  "kenya": "KE",
+  "rwanda": "RW",
+  "ouganda": "UG", "uganda": "UG",
+  "congo": "CG",
+  "rd congo": "CD", "rdc": "CD",
+  "gabon": "GA",
+  "zambie": "ZM", "zambia": "ZM",
+  "sierra leone": "SL",
+  "france": "FR",
+};
+
+// Normalise un pays (code ISO2 ou nom FR/EN) en code ISO2. Défaut : CM.
+function toIso2(country) {
+  if (!country) return "CM";
+  const c = String(country).trim();
+  if (c.length === 2) return c.toUpperCase();
+  return COUNTRY_ISO2[c.toLowerCase()] || "CM";
+}
+
+// Pays servis par l'agrégateur "précis" via la méthode "Afrique" (sans frais).
+const PRECISE_AGGREGATOR_COUNTRIES = ["CM", "GA"];
+
+// SÉCURITÉ : le provider est RE-DÉRIVÉ côté serveur à partir de (region, country).
+// On IGNORE le provider envoyé par le client (sinon il pourrait forcer "fapshi"
+// avec country=SN pour contourner les frais GeniusPay). Seul PayPal reste un
+// choix explicite du client (bouton dédié, sans frais de service).
+//
+// TEMP : pour Cameroun + Gabon via la méthode "Afrique", on route vers KPay
+// (redirection vers sa page de paiement hébergée) le temps de valider le flux.
+// TODO : trancher l'agrégateur définitif pour ces pays — Fapshi ne couvre que le
+// Cameroun ; pour le Gabon il faudra soit garder KPay, soit brancher un
+// agrégateur Gabon dédié. Pour revenir à Fapshi : retourner "fapshi" ci-dessous.
+function resolveProvider({ provider, region, country }) {
+  if (provider === "paypal") return "paypal";
+  if (!region) return "fapshi"; // bouton "Cameroun" (Orange + MTN via Fapshi)
+  if (region === "africa" && PRECISE_AGGREGATOR_COUNTRIES.includes(toIso2(country))) {
+    return "kpay"; // TEMP (voir ci-dessus)
+  }
+  return "geniuspay"; // reste de l'Afrique + Europe + Cartes
 }
 
 // ─── VOTER ────────────────────────────────────────────────────────────────────
@@ -67,7 +122,10 @@ async function findOrCreateVoter({ voterName, voterEmail, voterPhone }) {
 
 // ─── FAPSHI ───────────────────────────────────────────────────────────────────
 
-async function initFapshi({ txRef, amount, userEmail, candidateName, votesCount }) {
+async function initFapshi({ txRef, amount, userEmail, candidateName, votesCount, country }) {
+  // Fapshi gère le choix de l'opérateur (Orange/MTN) sur sa page hébergée : pas
+  // besoin de distinguer côté API. On logge le pays pour la traçabilité (Gabon…).
+  logger.info(`Fapshi init: txRef=${txRef} country=${toIso2(country)}`);
   const response = await axios.post(
     "https://live.fapshi.com/initiate-pay",
     {
@@ -247,36 +305,7 @@ async function initGeniusPay({ txRef, amount, userEmail, userName, candidateName
     throw new AppError("Montant minimum pour GeniusPay : 200 FCFA (2 votes)", 400);
   }
 
-  const COUNTRY_ISO2 = {
-    "cameroun": "CM", "cameroon": "CM",
-    "côte d'ivoire": "CI", "cote d'ivoire": "CI", "cote divoire": "CI", "ivory coast": "CI",
-    "sénégal": "SN", "senegal": "SN",
-    "mali": "ML",
-    "burkina faso": "BF", "burkina": "BF",
-    "bénin": "BJ", "benin": "BJ",
-    "togo": "TG",
-    "niger": "NE",
-    "guinée": "GN", "guinee": "GN",
-    "ghana": "GH",
-    "nigeria": "NG",
-    "kenya": "KE",
-    "rwanda": "RW",
-    "ouganda": "UG", "uganda": "UG",
-    "congo": "CG",
-    "rd congo": "CD", "rdc": "CD",
-    "gabon": "GA",
-    "zambie": "ZM", "zambia": "ZM",
-    "sierra leone": "SL",
-    "france": "FR",
-  };
-
-  const resolveCountry = (c) => {
-    if (!c) return "CM";
-    if (c.length === 2) return c.toUpperCase();
-    return COUNTRY_ISO2[c.toLowerCase().trim()] || "CM";
-  };
-
-  const countryCode = resolveCountry(country);
+  const countryCode = toIso2(country);
   const rawDesc = `${candidateName} - ${amount.toLocaleString("fr-FR")} FCFA`;
   const description = rawDesc.length > 500 ? rawDesc.substring(0, 497) + "..." : rawDesc;
   const safeUserName = (userName || "Votant").substring(0, 100);
@@ -529,9 +558,10 @@ async function processGeniusPayWebhook(body) {
   }
 }
 
-// ─── KPAY (Mobile Money Afrique — GATEWAY) ─────────────────────────────────────
-// Alternative TEMPORAIRE à GeniusPay pour la région "africa" (page hébergée KPay).
-// Europe + Cartes restent sur GeniusPay.
+// ─── KPAY (Mobile Money — GATEWAY) ─────────────────────────────────────────────
+// TEMP : agrégateur pour Cameroun + Gabon via la méthode "Afrique" (redirection
+// vers la page de paiement hébergée KPay, sans frais de service). Le reste de
+// l'Afrique + Europe + Cartes restent sur GeniusPay. Voir resolveProvider().
 const KPAY_BASE_URL = "https://admin.kpay.site/api/v1";
 
 const KPAY_COUNTRY_CODES = {
@@ -710,7 +740,7 @@ async function processKPayWebhook(body) {
 
 // ─── INITIALIZE PAYMENT ───────────────────────────────────────────────────────
 
-async function initializePayment({ candidateId, amount, provider, region, operator, country, voterName, voterEmail, voterPhone }) {
+async function initializePayment({ candidateId, amount, provider: clientProvider, region, country, voterName, voterEmail, voterPhone }) {
   const contest = await prisma.contest.findFirst({ where: { status: "OPEN" } });
   if (!contest) throw new AppError("Les votes sont actuellement fermés", 403);
 
@@ -723,8 +753,19 @@ async function initializePayment({ candidateId, amount, provider, region, operat
   const baseVotes = amountToVotes(amount);
   if (baseVotes < 1) throw new AppError("Montant minimum : 100 FCFA", 400);
 
-  const validProviders = ["fapshi", "paypal", "geniuspay"];
-  if (!validProviders.includes(provider)) throw new AppError("Provider invalide", 400);
+  // SÉCURITÉ : provider RE-DÉRIVÉ serveur depuis (region, country) — celui du
+  // client est ignoré (anti-contournement des frais). Voir resolveProvider.
+  const provider = resolveProvider({ provider: clientProvider, region, country });
+  const iso2 = toIso2(country);
+
+  // Montant minimum selon le provider RE-DÉRIVÉ (pas celui du client).
+  const minAmount = provider === "geniuspay" ? 200 : 100;
+  if (amount < minAmount) {
+    throw new AppError(
+      `Montant minimum : ${minAmount} FCFA${provider === "geniuspay" ? " (2 votes avec ce mode de paiement)" : ""}`,
+      400,
+    );
+  }
 
   // Promo "votes doubles" : si l'admin a activé l'option, les votes lancés
   // pendant la période active comptent ×2 (le montant payé reste identique).
@@ -732,15 +773,9 @@ async function initializePayment({ candidateId, amount, provider, region, operat
   const votesCount = doubleActive ? baseVotes * 2 : baseVotes;
 
   // Frais recalculés serveur (jamais ceux du client) + montant réellement facturé.
+  // Fapshi / KPay / PayPal : 0 — GeniusPay : selon la région.
   const serviceFee = computeServiceFee({ provider, region, amount });
   const chargeAmount = amount + serviceFee;
-
-  // KPay DÉSACTIVÉ (commenté) : GeniusPay est de nouveau opérationnel, l'Afrique
-  // repasse donc sur GeniusPay (comme l'Europe + les Cartes). Le code KPay reste
-  // en place (init/verify/webhooks) au cas où on voudrait rebasculer plus tard ;
-  // il suffira de rétablir la ligne ci-dessous.
-  // const useKPay = provider === "geniuspay" && region === "africa";
-  const useKPay = false;
 
   const voter = await findOrCreateVoter({ voterName, voterEmail, voterPhone });
   const txRef = `MMM-${provider.toUpperCase()}-${uuidv4()}`;
@@ -754,11 +789,11 @@ async function initializePayment({ candidateId, amount, provider, region, operat
       flutterwaveTxRef: txRef,
       status: "PENDING",
       metadata: {
-        provider,
-        gateway: useKPay ? "kpay" : provider, // passerelle réellement utilisée
+        provider,            // provider RE-DÉRIVÉ serveur (source de vérité)
+        clientProvider: clientProvider || null, // ce que le front avait envoyé (trace)
+        gateway: provider,   // passerelle réellement utilisée
         region: region || null,
-        operator: operator || null,
-        country: country || "CM",
+        country: iso2,       // ISO2 normalisé
         serviceFee,          // frais répercutés sur le votant
         chargeAmount,        // montant réellement débité (base + frais)
         baseVotes,           // votes avant promo
@@ -779,7 +814,7 @@ async function initializePayment({ candidateId, amount, provider, region, operat
     userName: voter.name || voter.email,
     candidateName: candidate.name,
     votesCount,
-    country,
+    country: iso2,
     voterPhone: voter.phone,
   };
 
@@ -809,36 +844,36 @@ async function initializePayment({ candidateId, amount, provider, region, operat
         },
       });
 
+    } else if (provider === "kpay") {
+      // ── CAMEROUN + GABON (méthode "Afrique") : KPay en mode GATEWAY ──
+      // TEMP — redirection vers la page de paiement hébergée KPay, sans frais.
+      const result = await initKPay({
+        txRef,
+        amount: chargeAmount,
+        candidateName: candidate.name,
+      });
+      paymentLink = result.paymentLink; // URL de la passerelle KPay → redirection
+      await prisma.payment.update({
+        where: { id: payment.id },
+        data: {
+          flutterwaveFlwRef: result.kpayId,
+          flutterwaveTransId: result.kpayReference,
+        },
+      });
+
     } else if (provider === "geniuspay") {
-      if (useKPay) {
-        // ── AFRIQUE : KPay en mode GATEWAY (redirection vers la page KPay) ──
-        const result = await initKPay({
-          txRef,
-          amount: chargeAmount,
-          candidateName: candidate.name,
-        });
-        paymentLink = result.paymentLink; // URL de la passerelle KPay → redirection
-        await prisma.payment.update({
-          where: { id: payment.id },
-          data: {
-            flutterwaveFlwRef: result.kpayId,
-            flutterwaveTransId: result.kpayReference,
-          },
-        });
-      } else {
-        // ── EUROPE + CARTES : GeniusPay (inchangé) ──
-        const result = await initGeniusPay(params);
-        paymentLink = result.paymentLink;
-        // FIX : flutterwaveFlwRef = ID interne (pour verifyGeniusPay)
-        //        flutterwaveTransId = référence humaine (pour traçabilité)
-        await prisma.payment.update({
-          where: { id: payment.id },
-          data: {
-            flutterwaveFlwRef: result.geniuspayId,
-            flutterwaveTransId: result.geniuspayReference,
-          },
-        });
-      }
+      // ── RESTE DE L'AFRIQUE + EUROPE + CARTES : GeniusPay (avec frais) ──
+      const result = await initGeniusPay(params);
+      paymentLink = result.paymentLink;
+      // FIX : flutterwaveFlwRef = ID interne (pour verifyGeniusPay)
+      //        flutterwaveTransId = référence humaine (pour traçabilité)
+      await prisma.payment.update({
+        where: { id: payment.id },
+        data: {
+          flutterwaveFlwRef: result.geniuspayId,
+          flutterwaveTransId: result.geniuspayReference,
+        },
+      });
     }
   } catch (err) {
     await prisma.payment.update({
