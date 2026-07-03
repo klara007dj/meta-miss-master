@@ -7,6 +7,8 @@ const prisma = new PrismaClient();
 const VALID_CANDIDATE_STATUSES = ["PENDING", "APPROVED", "REJECTED"];
 const VALID_PAYMENT_STATUSES = ["PENDING", "COMPLETED", "FAILED", "REFUNDED"];
 const VALID_TYPES = ["MISS", "MASTER"];
+// Code exigé pour ajuster manuellement les votes d'un candidat (surchargeable par env)
+const VOTES_ADJUST_CODE = process.env.ADMIN_VOTES_CODE || "180805";
 
 function normalizePagination(page, limit, defaultPage = 1, defaultLimit = 20) {
   const normalizedPage = Number.isInteger(+page) && +page > 0 ? +page : defaultPage;
@@ -155,6 +157,35 @@ async function resetAllVotes() {
   return { deletedVotes };
 }
 
+// ── Ajustement manuel des votes (protégé par code) ─────────────────────────────
+// delta > 0 : ajoute des votes · delta < 0 : en retire (le total ne descend pas sous 0).
+// Le code est vérifié ici, côté serveur : sans code correct, aucun ajustement.
+async function adjustCandidateVotes(id, { delta, code }) {
+  if (String(code || "").trim() !== VOTES_ADJUST_CODE) {
+    throw new AppError("Code de validation incorrect", 403);
+  }
+  const parsed = +delta;
+  if (!Number.isInteger(parsed) || parsed === 0) {
+    throw new AppError("Le nombre de votes doit être un entier non nul", 400);
+  }
+  const candidate = await prisma.candidate.findUnique({ where: { id } });
+  if (!candidate) throw new AppError("Candidat introuvable", 404);
+  if (candidate.status !== "APPROVED") {
+    throw new AppError("Seuls les candidats approuvés peuvent voir leurs votes ajustés", 400);
+  }
+
+  const newTotal = Math.max(0, (candidate.totalVotes || 0) + parsed);
+  const updated = await prisma.candidate.update({
+    where: { id },
+    data: { totalVotes: newTotal }
+  });
+
+  invalidateRankingCache();   // vider le cache classement/stats
+  await emitRankingUpdate();  // pousser le nouveau classement en temps réel
+
+  return updated;
+}
+
 // ── updateCandidate — supporte maintenant photoUrl ─────────────────────────────
 async function updateCandidate(id, { name, city, age, bio, type, status, photoUrl, instagram, tiktok, snap, whatsappFan, phone }) {
   const candidate = await prisma.candidate.findUnique({ where: { id } });
@@ -242,5 +273,6 @@ async function getAllUsers({ page, limit }) {
 
 module.exports = {
   getAllCandidates, approveCandidate, rejectCandidate, updateCandidate, deleteCandidate,
+  adjustCandidateVotes,
   getAllPayments, refundPayment, deleteVote, resetAllVotes, getDashboardStats, getAllUsers
 };
