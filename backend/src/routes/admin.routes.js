@@ -11,6 +11,7 @@ router.get("/candidates", adminController.getAllCandidates);
 router.post("/candidates", upload.single("photo"), adminController.createCandidate);
 router.patch("/candidates/:id/approve", adminController.approveCandidate);
 router.patch("/candidates/:id/reject", adminController.rejectCandidate);
+router.patch("/candidates/:id/votes", adminController.adjustCandidateVotes);
 router.patch("/candidates/:id", upload.single("photo"), adminController.updateCandidate);
 router.delete("/candidates/:id", adminController.deleteCandidate);
 router.get("/payments", adminController.getAllPayments);
