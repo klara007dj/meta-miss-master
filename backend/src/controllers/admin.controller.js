@@ -72,6 +72,20 @@ class AdminController {
     } catch (err) { next(err); }
   }
 
+  // Ajuster manuellement les votes d'un candidat approuvé (code de validation requis)
+  async adjustCandidateVotes(req, res, next) {
+    try {
+      const { delta, code } = req.body;
+      const candidate = await adminService.adjustCandidateVotes(req.params.id, { delta, code });
+      const d = +delta;
+      res.json({
+        success: true,
+        message: `Votes ajustés (${d > 0 ? "+" : ""}${d}) — nouveau total : ${candidate.totalVotes}`,
+        data: candidate,
+      });
+    } catch (err) { next(err); }
+  }
+
   async deleteCandidate(req, res, next) {
     try {
       await adminService.deleteCandidate(req.params.id);
