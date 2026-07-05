@@ -74,6 +74,22 @@ model Candidate {
 
   user        User?           @relation(fields: [userId], references: [id])
   votes       Vote[]
+  likes       CandidateLike[]
+}
+
+// Un like = un appareil (deviceId) pour un candidat.
+// La contrainte unique (candidateId, deviceId) rend le like idempotent :
+// impossible de compter deux fois le même appareil, même en spammant l'API.
+model CandidateLike {
+  id          String   @id @default(cuid())
+  candidateId String
+  deviceId    String
+  createdAt   DateTime @default(now())
+
+  candidate   Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+
+  @@unique([candidateId, deviceId])
+  @@index([candidateId])
 }
 
 model Vote {
