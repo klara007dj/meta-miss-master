@@ -110,6 +110,23 @@ class AdminController {
     } catch (err) { next(err); }
   }
 
+  // Re-vérifie tous les paiements en attente auprès des fournisseurs et crédite
+  // les votes des transactions confirmées mais non créditées (webhook manqué).
+  async reconcilePayments(req, res, next) {
+    try {
+      const { withinDays } = req.body || {};
+      const summary = await adminService.reconcilePendingPayments({ withinDays });
+      res.json({
+        success: true,
+        message:
+          summary.credited > 0
+            ? `${summary.credited} transaction(s) synchronisée(s) · ${summary.votesAdded} vote(s) crédité(s)`
+            : `Aucune transaction à créditer (${summary.checked} vérifiée(s))`,
+        data: summary,
+      });
+    } catch (err) { next(err); }
+  }
+
   // ── Contest ──────────────────────────────────────────────
 
   async closeVotes(req, res, next) {
