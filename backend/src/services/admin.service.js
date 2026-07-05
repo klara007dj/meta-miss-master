@@ -231,6 +231,60 @@ async function updateCandidate(id, { name, city, age, bio, type, status, photoUr
   });
 }
 
+// ── Réconciliation des paiements ────────────────────────────────────────────
+// Re-vérifie auprès des fournisseurs (Fapshi, GeniusPay, KPay, PayPal) tous les
+// paiements encore PENDING : si le fournisseur confirme le succès, les votes
+// sont crédités (via verifyPayment, qui est idempotent). Sert à rattraper les
+// transactions payées dont le webhook ne serait jamais arrivé.
+//
+// withinDays : ne re-vérifie que les paiements créés dans les N derniers jours
+//              (défaut 7). max : plafond de sécurité sur le nombre traité.
+async function reconcilePendingPayments({ withinDays = 7, max = 500 } = {}) {
+  // Import tardif pour éviter tout cycle de require au chargement des modules.
+  const paymentService = require("./payment.service");
+
+  const days = Number.isInteger(+withinDays) && +withinDays > 0 ? +withinDays : 7;
+  const cap = Number.isInteger(+max) && +max > 0 ? Math.min(+max, 2000) : 500;
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+  const pending = await prisma.payment.findMany({
+    where: { status: "PENDING", createdAt: { gte: since } },
+    orderBy: { createdAt: "desc" },
+    take: cap,
+    select: { id: true, flutterwaveTxRef: true, votesCount: true },
+  });
+
+  const summary = {
+    checked: 0,
+    credited: 0,        // paiements passés PENDING → COMPLETED
+    stillPending: 0,
+    failed: 0,
+    errors: 0,
+    votesAdded: 0,
+  };
+
+  // Séquentiel : on évite de marteler les API des fournisseurs.
+  for (const p of pending) {
+    if (!p.flutterwaveTxRef) { summary.errors++; continue; }
+    summary.checked++;
+    try {
+      const res = await paymentService.verifyPayment(p.flutterwaveTxRef);
+      if (res.status === "COMPLETED") {
+        summary.credited++;
+        summary.votesAdded += res.votesCount || p.votesCount || 0;
+      } else if (res.status === "FAILED") {
+        summary.failed++;
+      } else {
+        summary.stillPending++;
+      }
+    } catch (err) {
+      summary.errors++;
+    }
+  }
+
+  return summary;
+}
+
 async function getDashboardStats() {
   const [
     totalUsers, totalCandidates, pendingCandidates,
@@ -274,5 +328,6 @@ async function getAllUsers({ page, limit }) {
 module.exports = {
   getAllCandidates, approveCandidate, rejectCandidate, updateCandidate, deleteCandidate,
   adjustCandidateVotes,
-  getAllPayments, refundPayment, deleteVote, resetAllVotes, getDashboardStats, getAllUsers
+  getAllPayments, refundPayment, deleteVote, resetAllVotes, reconcilePendingPayments,
+  getDashboardStats, getAllUsers
 };
