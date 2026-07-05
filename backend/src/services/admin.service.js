@@ -237,30 +237,43 @@ async function updateCandidate(id, { name, city, age, bio, type, status, photoUr
 // sont crédités (via verifyPayment, qui est idempotent). Sert à rattraper les
 // transactions payées dont le webhook ne serait jamais arrivé.
 //
-// withinDays : ne re-vérifie que les paiements créés dans les N derniers jours
-//              (défaut 7). max : plafond de sécurité sur le nombre traité.
-async function reconcilePendingPayments({ withinDays = 7, max = 500 } = {}) {
+// Chaque paiement est revérifié auprès de l'API de son fournisseur (appel réseau
+// lent). On traite donc un LOT BORNÉ par appel pour que la requête HTTP réponde
+// toujours vite (sinon le client dépasse son timeout) : l'admin peut relancer
+// le bouton autant de fois que nécessaire jusqu'à ce que `remaining` = 0.
+//
+// withinDays : ne re-vérifie que les paiements des N derniers jours (défaut 7).
+// max        : taille du lot traité à cet appel (défaut 40, plafond 100).
+async function reconcilePendingPayments({ withinDays = 7, max = 40 } = {}) {
   // Import tardif pour éviter tout cycle de require au chargement des modules.
   const paymentService = require("./payment.service");
 
   const days = Number.isInteger(+withinDays) && +withinDays > 0 ? +withinDays : 7;
-  const cap = Number.isInteger(+max) && +max > 0 ? Math.min(+max, 2000) : 500;
+  const cap = Number.isInteger(+max) && +max > 0 ? Math.min(+max, 100) : 40;
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
+  const where = { status: "PENDING", createdAt: { gte: since } };
+
+  // Nombre total en attente (avant traitement) → permet d'indiquer s'il reste
+  // des paiements à traiter après ce lot.
+  const totalPending = await prisma.payment.count({ where });
+
   const pending = await prisma.payment.findMany({
-    where: { status: "PENDING", createdAt: { gte: since } },
-    orderBy: { createdAt: "desc" },
+    where,
+    orderBy: { createdAt: "asc" }, // les plus anciens d'abord (les plus susceptibles d'être bloqués)
     take: cap,
     select: { id: true, flutterwaveTxRef: true, votesCount: true },
   });
 
   const summary = {
+    totalPending,       // total en attente au début
     checked: 0,
     credited: 0,        // paiements passés PENDING → COMPLETED
     stillPending: 0,
     failed: 0,
     errors: 0,
     votesAdded: 0,
+    remaining: 0,       // restant à traiter → relancer le bouton si > 0
   };
 
   // Séquentiel : on évite de marteler les API des fournisseurs.
@@ -281,6 +294,10 @@ async function reconcilePendingPayments({ withinDays = 7, max = 500 } = {}) {
       summary.errors++;
     }
   }
+
+  // Ceux qui étaient au-delà du lot ET ceux encore PENDING après vérification
+  // restent à traiter à la prochaine relance.
+  summary.remaining = Math.max(0, totalPending - summary.credited - summary.failed);
 
   return summary;
 }
