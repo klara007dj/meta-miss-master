@@ -116,14 +116,17 @@ class AdminController {
     try {
       const { withinDays } = req.body || {};
       const summary = await adminService.reconcilePendingPayments({ withinDays });
-      res.json({
-        success: true,
-        message:
-          summary.credited > 0
-            ? `${summary.credited} transaction(s) synchronisée(s) · ${summary.votesAdded} vote(s) crédité(s)`
-            : `Aucune transaction à créditer (${summary.checked} vérifiée(s))`,
-        data: summary,
-      });
+      const parts = [];
+      if (summary.credited > 0) {
+        parts.push(`${summary.credited} transaction(s) synchronisée(s) · ${summary.votesAdded} vote(s) crédité(s)`);
+      } else {
+        parts.push(`Aucune transaction à créditer (${summary.checked} vérifiée(s))`);
+      }
+      // S'il reste des paiements en attente non traités dans ce lot, inviter à relancer.
+      if (summary.remaining > 0) {
+        parts.push(`${summary.remaining} encore en attente — relancez pour continuer`);
+      }
+      res.json({ success: true, message: parts.join(" · "), data: summary });
     } catch (err) { next(err); }
   }
 
