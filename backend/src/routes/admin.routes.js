@@ -15,6 +15,7 @@ router.patch("/candidates/:id/votes", adminController.adjustCandidateVotes);
 router.patch("/candidates/:id", upload.single("photo"), adminController.updateCandidate);
 router.delete("/candidates/:id", adminController.deleteCandidate);
 router.get("/payments", adminController.getAllPayments);
+router.post("/payments/reconcile", adminController.reconcilePayments);
 router.post("/payments/:id/refund", adminController.refundPayment);
 router.get("/users", adminController.getAllUsers);
 router.delete("/users/:id", adminController.deleteUser);
