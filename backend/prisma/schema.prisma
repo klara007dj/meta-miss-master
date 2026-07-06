@@ -63,6 +63,7 @@ model Candidate {
   status      CandidateStatus @default(PENDING)
   totalVotes  Int             @default(0)
   totalLikes  Int             @default(0)
+  points      Int             @default(0)
   instagram   String?
   tiktok      String?
   snap        String?
@@ -90,6 +91,17 @@ model CandidateLike {
 
   @@unique([candidateId, deviceId])
   @@index([candidateId])
+}
+
+// Trace de l'attribution quotidienne des points (chaque soir à 21h Cameroun).
+// `day` = "YYYY-MM-DD" (jour local Cameroun), unique → garantit qu'on n'attribue
+// les points qu'UNE fois par jour, même si le serveur redémarre ou si l'admin
+// déclenche manuellement en plus du cron. `detail` = instantané du classement.
+model PointsAward {
+  id        String   @id @default(cuid())
+  day       String   @unique
+  detail    Json?
+  createdAt DateTime @default(now())
 }
 
 model Vote {

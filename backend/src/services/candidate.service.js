@@ -17,6 +17,7 @@ const PUBLIC_CANDIDATE_SELECT = {
   status: true,
   totalVotes: true,
   totalLikes: true,
+  points: true,
   instagram: true,
   tiktok: true,
   snap: true,
