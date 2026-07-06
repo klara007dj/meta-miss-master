@@ -3,6 +3,7 @@ const adminService = require("../services/admin.service");
 const candidateService = require("../services/candidate.service");
 const contestService = require("../services/contest.service");
 const settingsService = require("../services/settings.service");
+const pointsService = require("../services/points.service");
 
 class AdminController {
   // ── Candidates ──────────────────────────────────────────
@@ -267,6 +268,31 @@ class AdminController {
         message: `Tous les votes ont été remis à zéro (${result.deletedVotes} vote(s) supprimé(s))`,
         data: result,
       });
+    } catch (err) { next(err); }
+  }
+
+  // ── Points quotidiens ────────────────────────────────────
+  // Attribution manuelle (filet de secours si le cron de 21h a échoué).
+  // Idempotent par jour ; force:true ré-attribue même si déjà fait aujourd'hui.
+  async awardPoints(req, res, next) {
+    try {
+      const force = req.body?.force === true;
+      const result = await pointsService.awardDailyPoints({ force });
+      res.json({
+        success: true,
+        message: result.alreadyAwarded
+          ? `Points déjà attribués aujourd'hui (${result.day})`
+          : `Points attribués à ${result.awarded.length} candidat(s) · votes remis à zéro`,
+        data: result,
+      });
+    } catch (err) { next(err); }
+  }
+
+  // Dernière attribution (pour affichage admin).
+  async getPointsStatus(req, res, next) {
+    try {
+      const last = await pointsService.getLastAward();
+      res.json({ success: true, data: { last, today: pointsService.cameroonDayKey() } });
     } catch (err) { next(err); }
   }
 }
